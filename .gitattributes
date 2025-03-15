@@ -1,0 +1,7 @@
+*.html linguist-detectable=false
+
+PostgreSQL/*.sql linguist-detectable=true linguist-language=SQL
+PostgreSQL/*.sh linguist-detectable=true linguist-language=Bash
+Neo4j/*.cql linguist-detectable=true linguist-language=Cypher
+src/*.rs linguist-detectable=true linguist-language=Rust
+MongoDB/*.js linguist-detectable=true linguist-language=MongoDB
