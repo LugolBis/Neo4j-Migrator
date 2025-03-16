@@ -1,3 +1,7 @@
 /target
 /PostgreSQL/northwind.sql
 env.txt
+*json
+*csv
+/Neo4j/triggers.cql
+/Neo4j/constraints.cql

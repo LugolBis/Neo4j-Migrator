@@ -82,4 +82,23 @@ impl PostgreSQL {
             Err(error) => { return Err(String::from(error)); }
         }
     }
+
+    pub fn export_tables_csv(&self,folder_path:&str) -> Result<String, String> {
+        let query = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'";
+        match &self.execute_query(query, true) {
+            Ok(result) => {
+                let tables = result.split("\n").collect::<Vec<&str>>();
+                for index in 1..tables.len()-1 {
+                    if let Some(table) = tables.get(index) {
+                        let table = *table;
+                        if let Err(error) = &self.execute_query(&format!(r"\copy {} to '{}{}.csv' CSV HEADER",table,folder_path,table),true) {
+                            return Err(format!("ERROR : when try to export the data of the table : '{}'\n{}",table,error));
+                        }
+                    }
+                }
+                Ok(String::from(""))
+            },
+            Err(error) => Err(String::clone(error))
+        }
+    }
 }

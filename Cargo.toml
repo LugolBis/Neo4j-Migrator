@@ -5,4 +5,5 @@ edition = "2021"
 
 [dependencies]
 serde_json = "1.0.139"
+polars = "0.46.0"
 sqlparser = "0.55.0"
