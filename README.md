@@ -1,24 +1,19 @@
-# DB-Migrator 💾
+# Neo4j-Migrator 💾
 
-## What's DB-Migrator ?
+## What's Neo4j-Migrator ?
 
-DB-Migrator is a powerfull tool that permite you to **migrate** a **relationnal database** into a **graph database**.
-With the simple access of your relationnal database it export the data/meta-data needed for the migration. After export the data into JSON files, DB-Migrator use them to translate your relationnal database into a graph database and generate **CSV** files. You could use these files to perform import to your Neo4j database.
+Neo4j-Migrator is a powerfull tool that permite you to **migrate** a **relationnal database** into a **graph database**.
+With the simple access of your relationnal database it export the data/meta-data needed for the migration. After export the data into CSV files and the meta-data into JSON file, Neo4j-Migrator use them to translate your relationnal database into a graph database and generate **CSV** files. You could use these files to perform import to your Neo4j database.
 
-## Language supported
+## Getting started
 
-- [Rust](https://github.com/LugolBis/DB-Migrator/tree/rust)
-- [Python](https://github.com/LugolBis/DB-Migrator/tree/Python)
-
-## Local usage
-
-1) Check the [Requirements](https://github.com/LugolBis/DB-Migrator#requirements)
+1) Check the [Requirements](https://github.com/LugolBis/Neo4j-Migrator#requirements)
 2) Configure your Neo4j database
-3) Install **DB-Migrator** :
+3) Install **Neo4j-Migrator** :
    ```BashScript
-   $ git clone https://github.com/LugolBis/DB-Migrator.git
+   $ git clone https://github.com/LugolBis/Neo4j-Migrator.git
    ```
-4) Start your Neo4j database and run **DB-Migrator** :
+4) Start your Neo4j database and run **Neo4j-Migrator** :
    ```BashScript
    $ cargo run
    ```
@@ -44,4 +39,4 @@ With the simple access of your relationnal database it export the data/meta-data
 | Operating System | Relationnal Database | Graph Database | Plugin | Compatibility |
 |:-:|:-:|:-:|:-:|:-:|
 | Linux/macOS | PostgreSQL | Neo4j **v5.26.0** | APOC **v5.26.2** | ✅ |
-| other~ | other~ | other~| ❔ |
+| other~ | other~ | other~ | other~ | ❔ |
