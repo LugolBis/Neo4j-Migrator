@@ -37,6 +37,7 @@ fn example() -> Result<(), String> {
     let save_meta_data = format!("{}/Data/postgresql_meta_data.json",current_dir);
 
     let tables_folder = format!("{}/Data/",current_dir);
+    let save_fk = format!("{}/Neo4j/FK.csv",current_dir);
 
     match db_postgresql.export_from_sql(&script_meta_data,function_meta_data,&save_meta_data) {
         Ok(_) => {
@@ -61,7 +62,7 @@ fn example() -> Result<(), String> {
             match db_neo4j.execute_script(&script_delete) {
                 Ok(result) => {
                     println!("{}", result);
-                    match generate_import_files(&db_neo4j, &save_meta_data, &tables_folder) {
+                    match generate_import_files(&db_neo4j, &save_meta_data, &tables_folder, &save_fk) {
                         Ok(result) => println!("{}",result),
                         Err(result) => println!("{}",result)
                     }

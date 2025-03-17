@@ -73,7 +73,7 @@ pub fn load_with_admin(db_neo4j: &Neo4j) -> Result<String, String> {
     }
 }
 
-fn create_csv_headers(db_neo4j: &Neo4j,meta_data_path:&str) -> Result<String, String> {
+fn create_csv_headers(db_neo4j: &Neo4j,meta_data_path:&str, foreign_key_path:&str) -> Result<String, String> {
     //! Generate **CSV** files who contains the **HEADERS** needed to generate and organise the
     //! data to be imported to Neo4j.
     if let Err(error) = clean_directory(&db_neo4j.get_import_folder()) {
@@ -160,7 +160,7 @@ fn create_csv_headers(db_neo4j: &Neo4j,meta_data_path:&str) -> Result<String, St
                     Err(error) => { return Err(format!("{}",error)); }
                 }
 
-                const HEADERS_FK:&str = ":START_ID;:END_ID;:TYPE";
+                const HEADERS_FK:&str = ":START_ID;:END_ID;:TYPE\n";
                 for fk in foreign_keys {
                     let file_path = format!("{}{}_REF_{}.csv",db_neo4j.get_import_folder(),label,fk);
                     let mut file = OpenOptions::new().write(true).create(true).truncate(true).open(&file_path)
@@ -193,7 +193,7 @@ fn create_csv_headers(db_neo4j: &Neo4j,meta_data_path:&str) -> Result<String, St
                 },
                 Err(error) => { return Err(format!("{}",error)); }
             }
-            let mut file = OpenOptions::new().write(true).create(true).truncate(true).open("./Neo4j/FK.csv")
+            let mut file = OpenOptions::new().write(true).create(true).truncate(true).open(foreign_key_path)
                 .map_err(|error| format!("new {}",error))?;
             match file.write_all(&fk_content.as_bytes()) {
                 Ok(_) => println!("\nSuccessfully write the ./Neo4j/postgresql_fk.csv file."),
@@ -238,7 +238,8 @@ fn extract_nodes(db_neo4j: &Neo4j,tables_folder:&str) -> Result<String, String> 
                             .map_err(|e| format!("ERROR : when try to filter the Dataframe with the columns '{:#?}' from the file {}\n{:?}",
                             headers,file_name,e))?;
                         
-                        let index_series = Series::new("index_number".into(), (0..df.height() as u64).collect::<Vec<u64>>());
+                        let index_series = Series::new("neo4j_id_for_import".into(),
+                            (0..df.height() as u64).map(|x| format!("{}{}",label,x)).collect::<Vec<String>>());
                         let df = df.insert_column(0, index_series)
                             .map_err(|e| format!("ERROR : when try to insert the index column in {}\n{}",file_name,e))?;
 
@@ -271,60 +272,92 @@ fn extract_edges(db_neo4j: &Neo4j,foreign_key_path:&str) -> Result<String, Strin
     //! Read the JSON file that contains all the couple of foreign keys of the PostgreSQL database <br>
     //! and save them in the CSV files in the the import folder. <br><br>
     //! **WARNING** this method need to be used after ```&self.extract_csv_headers(...)```
-    let content = fs::read_to_string(foreign_key_path)
+    let lines = fs::read_to_string(foreign_key_path)
         .map_err(|error| format!("{}",error))?;
+    let lines = lines.split("\n").collect::<Vec<&str>>();
 
-    let json_object:Value = serde_json::from_str(&content)
-        .map_err(|error| format!("{}",error))?;
+    for line in lines {
+        if line != "" {
+            let elements = line.split(";").collect::<Vec<&str>>();
+            let label = elements[0];
+            let tables = elements[0].split("_REF_").collect::<Vec<&str>>();
+            let table1 = tables[0];
+            let table2 = tables[1];
+            let column1 = elements[1];
+            let column2 = elements[2];
 
-    let map = json_object.as_object()
-        .ok_or_else(|| format!("Error when try to parse into a Map this object :\n{}",json_object))?;
+            let mut df1 = CsvReadOptions::default()
+                .with_has_header(true).try_into_reader_with_file_path(Some(format!("./Data/{}.csv",table1.to_lowercase()).into()))
+                .map_err(|e| format!("{}",e))?.finish().map_err(|e| format!("{}",e))?;
 
-    for (file_name, lines) in map {
-        let labels = file_name.split("_REF_").collect::<Vec<&str>>();
-        let mut content = String::new();
-        if let Some(vector) = lines.as_array() {
-            for couple in vector {
-                if let Some(duo) = couple.as_array() {
-                    content.push_str(&format!("\n{}{};{}{};{}",
-                        labels[0],duo[0],labels[1],duo[1],file_name
-                    ));
-                }
+            let mut df1_id = generate_id_column(&df1, table1, "row_id1")
+                .map_err(|e| format!("{}",e))?;
+            df1_id.rename("row_id1".into());
+
+            let df1 = df1.insert_column(0, df1_id).map_err(|e| format!("{}",e))?;
+
+            let mut df2 = CsvReadOptions::default()
+                .with_has_header(true).try_into_reader_with_file_path(Some(format!("./Data/{}.csv",table2.to_lowercase()).into()))
+                .map_err(|e| format!("{}",e))?.finish().map_err(|e| format!("{}",e))?;
+
+            let mut df2_id = generate_id_column(&df2, table2, "row_id2")
+                .map_err(|e| format!("{}",e))?;
+            df2_id.rename("row_id2".into());
+
+            let df2 = df2.insert_column(0, df2_id).map_err(|e| format!("{}",e))?;
+
+            let mut df = df1.inner_join(&df2, [column1], [column2]).map_err(|e| format!("{}",e))?
+                .select(["row_id1","row_id2"]).map_err(|e| format!("{}",e))?;
+
+            let mut df = df.with_column(
+                Series::new("line_number".into(),(0..df.height()).map(|c| String::from(label)).collect::<Vec<String>>()))
+                .map_err(|e| format!("ERROR : when try to insert the label column in {}\n{}",label,e))?;
+
+            let file_path = format!("{}/{}.csv",db_neo4j.get_import_folder(),elements[0]);
+            let mut file = OpenOptions::new().write(true).create(false).append(true).truncate(false).open(&file_path)
+                .map_err(|error| format!("{}",error))?;
+
+            if let Err(error) = CsvWriter::new(&mut file)
+                .include_header(false).with_separator(b';')
+                .finish(&mut df)
+            {
+                return Err(format!("ERROR : when try to write the Dataframe of {}\n{}",file_path,error))
             }
         }
-
-        let file_path = format!("{}{}.csv",db_neo4j.get_import_folder(),file_name);
-        let mut file = OpenOptions::new().write(true).append(true).create(true).open(&file_path)
-            .map_err(|error| format!("{}",error))?;
-        match file.write_all(&content.as_bytes()) {
-            Ok(_) => println!("\nSuccessfully write the edges in {}\n",file_path),
-            Err(error) => { return Err(format!("{}",error)); }
-        }
     }
-    Ok("Successfully extract the edges and store them in the CSV files !".to_string())
+    Ok("\nSuccessfully extract the edges and store them in the CSV files !".to_string())
 }
 
-pub fn generate_import_files(db_neo4j: &Neo4j, meta_data_path:&str, tables_folder:&str) -> Result<String, String> {
+pub fn generate_import_files(db_neo4j: &Neo4j, meta_data_path:&str, tables_folder:&str, foreign_key_path:&str) -> Result<String, String> {
     //! This function generate the files needed to do the import to Neo4J. These files store the database in CSV files in the import folder of the Neo4j object.
-    match create_csv_headers(db_neo4j, meta_data_path) {
+    match create_csv_headers(db_neo4j, meta_data_path, foreign_key_path) {
         Ok(res) => {
             println!("{}",res);
             match extract_nodes(db_neo4j, tables_folder) {
                 Ok(res) => {
                     println!("{}",res);
-                    Ok(res)
-                    /* 
                     match extract_edges(db_neo4j, foreign_key_path) {
                         Ok(res) => {
                            println!("{}\n\nThe files to do the import are ready. You can stop your neo4j database and use the function 'load_with_admin()'.",res);
                            Ok(res) 
                         },
                         Err(error) => Err(error)
-                    }*/
+                    }
                 },
                 Err(error) => Err(error)
             }
         },
         Err(error) => Err(error)
     }
+}
+
+fn generate_id_column(df: &DataFrame, label:&str, column_name:&str) -> Result<Column,String> {
+    Ok(df.with_row_index(column_name.into(), None)
+        .map_err(|e| format!("{}",e))?
+        .column(column_name).map_err(|e| format!("{}",e))?
+        .u32().map_err(|e| format!("{}",e))?.into_iter()
+        .map(|opt_name: Option<u32>| {
+            opt_name.map(|index: u32| format!("{}{}",label,index))
+        })
+        .collect::<StringChunked>().into_column())
 }
