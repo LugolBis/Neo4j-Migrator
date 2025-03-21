@@ -34,7 +34,7 @@ pub fn load_with_admin(db_neo4j: &Neo4j) -> Result<String, String> {
             for entry in entries {
                 if let Ok(entry_) = entry {
                     let file = entry_.file_name().into_string().unwrap_or_default();
-                    match (&file.find("_REF_"), &file.ends_with(".csv")) {
+                    match (&file.find("__REF__"), &file.ends_with(".csv")) {
                         (Some(_), true) => { relationships.push(file); },
                         (None, true) => { nodes.push(file); }
                         (_, _) => {}
@@ -142,9 +142,7 @@ fn create_csv_headers(db_neo4j: &Neo4j,meta_data_path:&str, foreign_key_path:&st
                                 .to_uppercase();
                             let column_ref_name = String::from(vector[0]["referenced_column"].as_str()
                                 .ok_or_else(|| format!("Error when try to get the 'referenced_column' field in {}",vector[0]))?);
-                            if !foreign_keys.contains(&key) {
-                                foreign_keys.push(String::clone(&key));
-                            }
+                            foreign_keys.push(format!("{}__REF__{}",label,column_name.to_uppercase()));
                             fk_content.push_str(&format!("{}_REF_{};{};{}\n",label,key,column_name,column_ref_name));
                         },
                         _ => { return Err(format!("Error when try to match the 'foreign_keys' field in {}", column)); }
@@ -162,7 +160,7 @@ fn create_csv_headers(db_neo4j: &Neo4j,meta_data_path:&str, foreign_key_path:&st
 
                 const HEADERS_FK:&str = ":START_ID;:END_ID;:TYPE\n";
                 for fk in foreign_keys {
-                    let file_path = format!("{}{}_REF_{}.csv",db_neo4j.get_import_folder(),label,fk);
+                    let file_path = format!("{}{}.csv",db_neo4j.get_import_folder(),fk);
                     let mut file = OpenOptions::new().write(true).create(true).truncate(true).open(&file_path)
                         .map_err(|error| format!("{}",error))?;
                     match file.write_all(HEADERS_FK.as_bytes()) {
@@ -279,12 +277,12 @@ fn extract_edges(db_neo4j: &Neo4j,foreign_key_path:&str) -> Result<String, Strin
     for line in lines {
         if line != "" {
             let elements = line.split(";").collect::<Vec<&str>>();
-            let label = elements[0];
             let tables = elements[0].split("_REF_").collect::<Vec<&str>>();
             let table1 = tables[0];
             let table2 = tables[1];
             let column1 = elements[1];
             let column2 = elements[2];
+            let label = format!("{}__REF__{}",table1,column1.to_uppercase());
 
             let mut df1 = CsvReadOptions::default()
                 .with_has_header(true).try_into_reader_with_file_path(Some(format!("./Data/{}.csv",table1.to_lowercase()).into()))
@@ -310,10 +308,10 @@ fn extract_edges(db_neo4j: &Neo4j,foreign_key_path:&str) -> Result<String, Strin
                 .select(["row_id1","row_id2"]).map_err(|e| format!("{}",e))?;
 
             let mut df = df.with_column(
-                Series::new("line_number".into(),(0..df.height()).map(|c| String::from(label)).collect::<Vec<String>>()))
+                Series::new("line_number".into(),(0..df.height()).map(|c| String::clone(&label)).collect::<Vec<String>>()))
                 .map_err(|e| format!("ERROR : when try to insert the label column in {}\n{}",label,e))?;
 
-            let file_path = format!("{}/{}.csv",db_neo4j.get_import_folder(),elements[0]);
+            let file_path = format!("{}{}.csv",db_neo4j.get_import_folder(),label);
             let mut file = OpenOptions::new().write(true).create(false).append(true).truncate(false).open(&file_path)
                 .map_err(|error| format!("{}",error))?;
 
