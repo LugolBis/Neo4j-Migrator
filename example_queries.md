@@ -116,7 +116,7 @@ where o.shipped_date > o.required_date
 return e.employee_id, o.order_id, c.customer_id, o.required_date, o.shipped_date;
 ```
 
-### Query 7
+### Query 8
 SQL :
 ```SQL
 SELECT city,company_name,contact_name
@@ -131,7 +131,7 @@ or c.city starts with "B"
 return c.city, c.company_name, c.contact_name;
 ```
 
-### Query 8
+### Query 9
 SQL :
 ```SQL
 SELECT order_id
@@ -145,7 +145,7 @@ where o.order_id%2 = 0
 return o.order_id;
 ```
 
-### Query 9
+### Query 10
 SQL :
 ```SQL
 SELECT o.order_id, count(o.order_id) as NumberOfOrders
@@ -161,7 +161,7 @@ return ID, NumberOfOrders
 order by NumberOfOrders desc;
 ```
 
-### Query 10
+### Query 11
 SQL :
 ```SQL
 SELECT s.supplier_id,p.product_name,s.company_name
@@ -178,7 +178,7 @@ return s.supplier_id,p.product_name,s.company_name
 order by s.supplier_id;
 ```
 
-### Query 11
+### Query 12
 SQL :
 ```SQL
 SELECT CONCAT( first_name,' ', last_name ,' can be reached at ', 'x',extension ) AS Contactinfo
@@ -190,7 +190,7 @@ match (e:Employee)
 return e.first_name + " " + e.last_name + " can be reached at x" + e.extension AS ContactInfo;
 ```
 
-### Query 12
+### Query 13
 SQL :
 ```SQL
 SELECT s.supplier_id,s.company_name,c.category_name,p.product_name,p.unit_price
@@ -204,7 +204,7 @@ match (s:SUPPLIERS)-[r1]-(p:PRODUCTS)-[r2]-(c:CATEGORIES)
 return s.supplier_id,s.company_name,c.category_name,p.product_name,p.unit_price;
 ```
 
-### Query 13
+### Query 14
 SQL :
 ```SQL
 SELECT customer_id, sum(freight) as Total
@@ -220,7 +220,7 @@ where Total > 200
 return ID, Total;
 ```
 
-### Query 14
+### Query 15
 SQL :
 ```SQL
 SELECT a.last_name as employee, b.last_name as manager
