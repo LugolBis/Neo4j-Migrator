@@ -55,24 +55,11 @@ fn example() -> Result<(), String> {
 
     // Neo4J part
 
-    let script_delete = format!("{}/Neo4j/delete.cql", current_dir);
-
     match db_neo4j.configure_db_on_linux() {
         Ok(result) => {
             println!("{}", result);
-            match db_neo4j.execute_script(&script_delete) {
-                Ok(result) => {
-                    println!("{}", result);
-                    match generate_import_files(
-                        &db_neo4j,
-                        &save_meta_data,
-                        &tables_folder,
-                        &save_fk,
-                    ) {
-                        Ok(result) => println!("{}", result),
-                        Err(result) => println!("{}", result),
-                    }
-                }
+            match generate_import_files(&db_neo4j,&save_meta_data,&tables_folder,&save_fk) {
+                Ok(result) => println!("{}", result),
                 Err(result) => println!("{}", result),
             }
         }

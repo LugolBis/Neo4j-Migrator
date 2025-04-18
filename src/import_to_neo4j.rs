@@ -286,13 +286,13 @@ fn create_csv_headers(db_neo4j: &Neo4j,meta_data_path: &str,foreign_key_path: &s
                 .open(foreign_key_path)
                 .map_err(|error| format!("new {}", error))?;
             match file.write_all(&fk_content.as_bytes()) {
-                Ok(_) => println!("\nSuccessfully write the ./Neo4j/postgresql_fk.csv file."),
+                Ok(_) => println!("\nSuccessfully write the FK.CSV file."),
                 Err(error) => {
-                    return Err(format!("nEW {}", error));
+                    return Err(format!("New {}", error));
                 }
             }
             return Ok(
-                "\nSuccessfully create and write the Headers for the Neo4j import.".to_string(),
+                String::from("\nSuccessfully create and write the Headers for the Neo4j import."),
             );
         }
         _ => {
@@ -408,7 +408,7 @@ fn extract_nodes(db_neo4j: &Neo4j, tables_folder: &str) -> Result<String, String
             return Err(format!("{}", error));
         }
     }
-    Ok("\nSuccessfully extract the nodes and store them in the CSV files !".to_string())
+    Ok(String::from("\nSuccessfully extract the nodes and store them in the CSV files !"))
 }
 
 /// Read the JSON file that contains all the couple of foreign keys of the PostgreSQL database <br>
@@ -499,7 +499,7 @@ fn extract_edges(db_neo4j: &Neo4j, foreign_key_path: &str) -> Result<String, Str
             }
         }
     }
-    Ok("\nSuccessfully extract the edges and store them in the CSV files !".to_string())
+    Ok(String::from("\nSuccessfully extract the edges and store them in the CSV files !"))
 }
 
 /// This function generate the files needed to do the import to Neo4J. These files store the database in CSV files in the import folder of the Neo4j object.
