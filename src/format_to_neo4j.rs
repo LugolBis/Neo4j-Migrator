@@ -1,9 +1,10 @@
+//! This module contains the logic to transform the data from the relationnal database to neo4j data
+
 use std::env;
 use std::fs::OpenOptions;
 use std::fs::{self, DirEntry};
 use std::io::Write;
 use std::path::Path;
-use std::process::Command;
 
 use polars::prelude::*;
 use serde_json::Value;
@@ -11,91 +12,13 @@ use serde_json::Value;
 use crate::neo4j::*;
 use crate::utils::*;
 
-/// This method perform the 'neo4j-admin import' from the ```&self.import_folder```<br><br>
-/// **WARNING** : This method construct the command 'neo4j-admin import' by detecting <br>
-/// the **CSV** files in the folder, you need to assert that there isn't other CSV files <br>
-/// than these you need for the import. Moreover assert that the CSV files who are contain the <br>
-/// *relationships* have '_REF_' in their name.
-pub fn load_with_admin(db_neo4j: &Neo4j) -> Result<String, String> {
-    if let Err(error) = env::set_current_dir(Path::new(db_neo4j.get_import_folder())) {
-        return Err(format!("{}", error));
-    }
-
-    let mut command: Command;
-    if cfg!(target_os = "windows") {
-        command = Command::new("bin\neo4j-admin.bat");
-    } else {
-        command = Command::new("../bin/neo4j-admin");
-    }
-    command.args(["database", "import", "full", db_neo4j.get_database()]);
-
-    let path = Path::new(db_neo4j.get_import_folder());
-    let mut nodes: Vec<String> = Vec::new();
-    let mut relationships: Vec<String> = Vec::new();
-    match fs::read_dir(path) {
-        Ok(entries) => {
-            let entries = entries
-                .filter(|e| e.is_ok())
-                .map(|x| x.unwrap())
-                .collect::<Vec<DirEntry>>();
-            for entry in entries {
-                let file = entry.file_name().into_string().unwrap_or_default();
-                match (&file.find("__REF__"), &file.ends_with(".csv")) {
-                    (Some(_), true) => {
-                        relationships.push(file);
-                    }
-                    (None, true) => {
-                        nodes.push(file);
-                    }
-                    (_, _) => {}
-                }
-            }
-            for node in nodes {
-                command.arg(format!("--nodes={}", node));
-            }
-            for relationship in relationships {
-                command.arg(format!("--relationships={}", relationship));
-            }
-            command.args([
-                "--delimiter=;",
-                "--array-delimiter=,",
-                "--overwrite-destination",
-                "--verbose",
-            ]);
-
-            let output = command.output();
-            match output {
-                Ok(output) => {
-                    if output.status.success() {
-                        let stdout = String::from_utf8_lossy(&output.stdout);
-                        let result = format!("{}", stdout);
-                        return Ok(result);
-                    } else {
-                        let stderr = String::from_utf8_lossy(&output.stderr);
-                        let result = format!("{}", stderr);
-                        return Err(result);
-                    }
-                }
-                Err(error) => {
-                    return Err(format!(
-                        "ERROR when try to execute the command :\n{:?}\n{}",
-                        command, error
-                    ))
-                }
-            }
-        }
-        Err(error) => {
-            return Err(format!(
-                "ERROR when try to list the files in the import directory :\n{}",
-                error
-            ))
-        }
-    }
-}
-
 /// Generate **CSV** files who contains the **HEADERS** needed to generate and organise the
 /// data to be imported to Neo4j.
-fn create_csv_headers(db_neo4j: &Neo4j,meta_data_path: &str,foreign_key_path: &str) -> Result<String, String> {
+fn create_csv_headers(
+    db_neo4j: &Neo4j,
+    meta_data_path: &str,
+    foreign_key_path: &str,
+) -> Result<String, String> {
     if let Err(error) = clean_directory(&db_neo4j.get_import_folder()) {
         return Err(error);
     }
@@ -291,9 +214,9 @@ fn create_csv_headers(db_neo4j: &Neo4j,meta_data_path: &str,foreign_key_path: &s
                     return Err(format!("New {}", error));
                 }
             }
-            return Ok(
-                String::from("\nSuccessfully create and write the Headers for the Neo4j import."),
-            );
+            return Ok(String::from(
+                "\nSuccessfully create and write the Headers for the Neo4j import.",
+            ));
         }
         _ => {
             return Err(format!(
@@ -384,7 +307,6 @@ fn extract_nodes(db_neo4j: &Neo4j, tables_folder: &str) -> Result<String, String
                     let path_destination = format!("{}{}.csv", db_neo4j.get_import_folder(), label);
 
                     let mut file = OpenOptions::new()
-                        .write(true)
                         .create(false)
                         .append(true)
                         .truncate(false)
@@ -408,7 +330,9 @@ fn extract_nodes(db_neo4j: &Neo4j, tables_folder: &str) -> Result<String, String
             return Err(format!("{}", error));
         }
     }
-    Ok(String::from("\nSuccessfully extract the nodes and store them in the CSV files !"))
+    Ok(String::from(
+        "\nSuccessfully extract the nodes and store them in the CSV files !",
+    ))
 }
 
 /// Read the JSON file that contains all the couple of foreign keys of the PostgreSQL database <br>
@@ -499,11 +423,18 @@ fn extract_edges(db_neo4j: &Neo4j, foreign_key_path: &str) -> Result<String, Str
             }
         }
     }
-    Ok(String::from("\nSuccessfully extract the edges and store them in the CSV files !"))
+    Ok(String::from(
+        "\nSuccessfully extract the edges and store them in the CSV files !",
+    ))
 }
 
 /// This function generate the files needed to do the import to Neo4J. These files store the database in CSV files in the import folder of the Neo4j object.
-pub fn generate_import_files(db_neo4j: &Neo4j,meta_data_path: &str,tables_folder: &str,foreign_key_path: &str) -> Result<String, String> {
+pub fn generate_import_files(
+    db_neo4j: &Neo4j,
+    meta_data_path: &str,
+    tables_folder: &str,
+    foreign_key_path: &str,
+) -> Result<String, String> {
     match create_csv_headers(db_neo4j, meta_data_path, foreign_key_path) {
         Ok(res) => {
             println!("{}", res);

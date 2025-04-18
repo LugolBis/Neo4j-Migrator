@@ -1,16 +1,17 @@
-// This is just a demo
+//! Note : This is just a demo of translating SQL queries into Cypher queries
 
 use std::collections::HashMap;
 
-use sqlparser::ast::{Query, *};
+use sqlparser::ast::*;
 use sqlparser::dialect::GenericDialect;
 use sqlparser::parser::Parser;
 
+#[allow(unused)]
+/// Return the node from the ```TableFactor``` object.
 fn from_table_factor(
     table_factor: TableFactor,
     hashmap: &mut HashMap<String, String>,
 ) -> Result<(), ()> {
-    //! Return the node from the ```TableFactor``` object.
     let mut res_alias = String::new();
     if let TableFactor::Table {
         name,
@@ -44,6 +45,7 @@ fn from_table_factor(
     }
 }
 
+#[allow(unused)]
 fn from_join_constraint(
     join_constraint: JoinConstraint,
 ) -> Result<(String, String, String, String), ()> {
@@ -68,8 +70,9 @@ fn from_join_constraint(
     }
 }
 
+#[allow(unused)]
+/// Return a tuple that contain the join
 fn from_join(join: Join, hashmap: &mut HashMap<String, String>) -> Result<(), ()> {
-    //! Return a tuple that contain the join
     match from_table_factor(join.relation, hashmap) {
         Ok(_) => match join.join_operator {
             JoinOperator::Inner(join_constraint) => {
@@ -132,6 +135,7 @@ fn from_join(join: Join, hashmap: &mut HashMap<String, String>) -> Result<(), ()
     }
 }
 
+#[allow(unused)]
 fn from_table_with_joins(
     table_with_joins: TableWithJoins,
     hashmap: &mut HashMap<String, String>,
@@ -149,6 +153,7 @@ fn from_table_with_joins(
     }
 }
 
+#[allow(unused)]
 fn from_statement(
     vector_twj: Vec<TableWithJoins>,
     hashmap: &mut HashMap<String, String>,
@@ -161,6 +166,7 @@ fn from_statement(
     Ok(())
 }
 
+#[allow(unused)]
 fn select_select_item(
     select_item: SelectItem,
     hashmap: &mut HashMap<String, String>,
@@ -178,6 +184,7 @@ fn select_select_item(
     }
 }
 
+#[allow(unused)]
 fn select_statement(
     vector_si: Vec<SelectItem>,
     hashmap: &mut HashMap<String, String>,
@@ -190,6 +197,7 @@ fn select_statement(
     Ok(())
 }
 
+#[allow(unused)]
 pub fn generate_cypher_query(sql_query: &str) -> Result<String, String> {
     let dialect = GenericDialect {}; // or AnsiDialect
     let ast = Parser::parse_sql(&dialect, sql_query).unwrap();

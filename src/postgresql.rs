@@ -1,3 +1,5 @@
+//! This module simplify interactions with PostgreSQL database
+
 use std::process::Command;
 
 /// A structure that represent a PostgreSQL connection

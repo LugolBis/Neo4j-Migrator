@@ -1,3 +1,5 @@
+//! This module simplify interactions with Neo4j database
+
 use std::env;
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -14,7 +16,13 @@ pub struct Neo4j {
 }
 
 impl Neo4j {
-    pub fn new(uri: &str,username: &str,password: &str,database: &str,import_folder: &str) -> Self {
+    pub fn new(
+        uri: &str,
+        username: &str,
+        password: &str,
+        database: &str,
+        import_folder: &str,
+    ) -> Self {
         Self {
             uri: String::from(uri),
             username: String::from(username),
@@ -24,26 +32,32 @@ impl Neo4j {
         }
     }
 
+    #[allow(unused)]
     pub fn get_uri(&self) -> &String {
         &self.uri
     }
 
+    #[allow(unused)]
     pub fn set_uri(&mut self, new_uri: String) {
         self.uri = new_uri
     }
 
+    #[allow(unused)]
     pub fn get_username(&self) -> &String {
         &self.username
     }
 
+    #[allow(unused)]
     pub fn set_username(&mut self, new_username: String) {
         self.username = new_username
     }
 
+    #[allow(unused)]
     pub fn get_password(&self) -> &String {
         &self.password
     }
 
+    #[allow(unused)]
     pub fn set_password(&mut self, new_password: String) {
         self.password = new_password
     }
@@ -52,6 +66,7 @@ impl Neo4j {
         &self.database
     }
 
+    #[allow(unused)]
     pub fn set_database(&mut self, new_database: String) {
         self.database = new_database
     }
@@ -60,10 +75,12 @@ impl Neo4j {
         &self.import_folder
     }
 
+    #[allow(unused)]
     pub fn set_import_folder(&mut self, new_import_folder: String) {
         self.import_folder = new_import_folder
     }
 
+    #[allow(unused)]
     /// This method take in input only one Cypher query.<br>
     /// To run more queries please use ```Neo4j::execute_script()```
     pub fn execute_query(&self, query: &str) -> Result<String, String> {

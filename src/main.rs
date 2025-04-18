@@ -1,4 +1,5 @@
-mod import_to_neo4j;
+mod format_to_neo4j;
+mod load_to_neo4j;
 mod neo4j;
 mod postgresql;
 mod translate;
@@ -12,7 +13,8 @@ fn main() {
 }
 
 fn example() -> Result<(), String> {
-    use import_to_neo4j::*;
+    use format_to_neo4j::*;
+    use load_to_neo4j::*;
     use neo4j::Neo4j;
     use postgresql::PostgreSQL;
     use std::env;
@@ -58,7 +60,7 @@ fn example() -> Result<(), String> {
     match db_neo4j.configure_db_on_linux() {
         Ok(result) => {
             println!("{}", result);
-            match generate_import_files(&db_neo4j,&save_meta_data,&tables_folder,&save_fk) {
+            match generate_import_files(&db_neo4j, &save_meta_data, &tables_folder, &save_fk) {
                 Ok(result) => println!("{}", result),
                 Err(result) => println!("{}", result),
             }
