@@ -58,117 +58,24 @@ fn process_meta_data(db_neo4j: &Neo4j,meta_data_path: &str,foreign_key_path: &st
                     format!("Error when try to get the 'columns' field in {}", table)
                 })?;
 
-                for column in columns {
-                    let column_name =
-                        String::from(column["column_name"].as_str().ok_or_else(|| {
-                            format!(
-                                "Error when try to get the 'column_name' field in {}",
-                                column
-                            )
-                        })?);
-                    let function_name = format!("{}_{}", label.to_lowercase(), column_name);
-                    match &column["foreign_key"] {
-                        Value::Null => {
-                            let pg_data_type = column["data_type"].as_str().ok_or_else(|| {
-                                format!("Error when try to get the 'data_type' field in {}", column)
-                            })?;
-                            let data_type = Neo4j::convert_postgresql_type(pg_data_type)
-                                .map_err(|error| format!("{}", error))?;
-
-                            if let Some(value) = column["primary_key"].as_bool() {
-                                if value == true {
-                                    constraints_content.push_str(&format!("create constraint unique_{} if not exists for (n:{}) require n.{} is unique;\n",
-                                    function_name,label,column_name));
-                                }
-                            }
-                            if let Some(value) = column["is_nullable"].as_str() {
-                                if value == "NO" {
-                                    constraints_content.push_str(&format!("create constraint nonull_{} if not exists for (n:{}) require n.{} is not null;\n",
-                                    function_name,label,column_name));
-                                }
-                            }
-                            triggers_content.push_str(&format!(r#"CALL apoc.trigger.add('type_{}',"MATCH (m:{}) WHERE m.{} IS NOT NULL AND NOT valueType(m.{}) = '{}' CALL apoc.util.validate(true, 'ERROR : The type of the field {} need to be a {} .', []) RETURN m",{{phase: 'before'}});{}"#
-                                ,function_name,label,column_name,column_name,data_type,column_name,data_type,"\n"));
-                            headers.push_str(&format!("{}:{};", column_name, data_type));
-                        }
-                        Value::Array(vector) => {
-                            let key = String::from(
-                                vector[0]["referenced_table"].as_str().ok_or_else(|| {
-                                    format!(
-                                        "Error when try to get the 'referenced_table' field in {}",
-                                        vector[0]
-                                    )
-                                })?,
-                            )
-                            .to_uppercase();
-                            let column_ref_name = String::from(
-                                vector[0]["referenced_column"].as_str().ok_or_else(|| {
-                                    format!(
-                                        "Error when try to get the 'referenced_column' field in {}",
-                                        vector[0]
-                                    )
-                                })?,
-                            );
-                            foreign_keys.push(format!(
-                                "{}__REF__{}",
-                                label,
-                                column_name.to_uppercase()
-                            ));
-                            fk_content.push_str(&format!(
-                                "{}_REF_{};{};{}\n",
-                                label, key, column_name, column_ref_name
-                            ));
-                        }
-                        _ => {
-                            return Err(format!(
-                                "Error when try to match the 'foreign_keys' field in {}",
-                                column
-                            ));
-                        }
-                    }
-                }
+                process_columns(columns,label.as_str(),&mut constraints_content, &mut triggers_content, &mut headers, &mut foreign_keys, &mut fk_content)?;
 
                 headers.push_str(":LABEL\n");
                 let file_path = format!("{}{}.csv", db_neo4j.get_import_folder(), label);
-                let mut file = OpenOptions::new()
-                    .write(true)
-                    .create(true)
-                    .truncate(true)
-                    .open(&file_path)
-                    .map_err(|error| format!("{}", error))?;
-                match file.write_all(&headers.as_bytes()) {
-                    Ok(_) => println!("\nSuccessfully write the headers in {}\n", file_path),
-                    Err(error) => {
-                        return Err(format!("{}", error));
-                    }
-                }
+                write_file(headers, &file_path)?;
+                println!("\nSuccessfully write the headers in {}\n", file_path);
 
                 for fk in foreign_keys {
                     let file_path = format!("{}{}.csv", db_neo4j.get_import_folder(), fk);
-                    let mut file = OpenOptions::new()
-                        .write(true)
-                        .create(true)
-                        .truncate(true)
-                        .open(&file_path)
-                        .map_err(|error| format!("{}", error))?;
-                    match file.write_all(HEADERS_FK.as_bytes()) {
-                        Ok(_) => println!("\nSuccessfully write the fk headers in {}\n", file_path),
-                        Err(error) => {
-                            return Err(format!("{}", error));
-                        }
-                    }
+                    write_file(String::from(HEADERS_FK), &file_path)?;
+                    println!("\nSuccessfully write the fk headers in {}\n", file_path);
                 }
             }
-            let mut file = OpenOptions::new()
-                .write(true)
-                .create(true)
-                .truncate(true)
-                .open(&constraints_path)
-                .map_err(|error| format!("{}", error))?;
-            match file.write_all(constraints_content.as_bytes()) {
+
+            match write_file(constraints_content, &constraints_path) {
                 Ok(_) => match db_neo4j.execute_script(&constraints_path) {
                     Ok(_) => println!(
-                        "\nSuccessfully create and run the Cypher script : {}",
+                        "\nSuccessfully create and run the Cypher script : {}\n",
                         constraints_path
                     ),
                     Err(error) => {
@@ -179,16 +86,11 @@ fn process_meta_data(db_neo4j: &Neo4j,meta_data_path: &str,foreign_key_path: &st
                     return Err(format!("{}", error));
                 }
             }
-            let mut file = OpenOptions::new()
-                .write(true)
-                .create(true)
-                .truncate(true)
-                .open(&triggers_path)
-                .map_err(|error| format!("{}", error))?;
-            match file.write_all(triggers_content.as_bytes()) {
+
+            match write_file(triggers_content, &triggers_path) {
                 Ok(_) => match db_neo4j.execute_script(&triggers_path) {
                     Ok(_) => println!(
-                        "\nSuccessfully create and run the Cypher script : {}",
+                        "\nSuccessfully create and run the Cypher script : {}\n",
                         triggers_path
                     ),
                     Err(error) => {
@@ -199,28 +101,112 @@ fn process_meta_data(db_neo4j: &Neo4j,meta_data_path: &str,foreign_key_path: &st
                     return Err(format!("{}", error));
                 }
             }
-            let mut file = OpenOptions::new()
-                .write(true)
-                .create(true)
-                .truncate(true)
-                .open(foreign_key_path)
-                .map_err(|error| format!("new {}", error))?;
-            match file.write_all(&fk_content.as_bytes()) {
-                Ok(_) => println!("\nSuccessfully write the FK.CSV file."),
-                Err(error) => {
-                    return Err(format!("New {}", error));
-                }
-            }
-            return Ok(String::from(
-                "\nSuccessfully create and write the Headers for the Neo4j import.",
-            ));
+
+            write_file(fk_content, foreign_key_path)?;
+            println!("\nSuccessfully write the ./Neo4J/FK.CSV file");
+
+            Ok(String::from("\nSuccessfully create and write the Headers for the Neo4j import."))
         }
         _ => {
-            return Err(format!(
-                "Expected a Value::Object(Map<_,_>) but found :\n{}",
-                json_object
-            ))
+            Err(format!("Expected a Value::Object(Map<_,_>) but found :\n{}",json_object))
         }
+    }
+}
+
+fn process_columns(
+    columns: &Vec<Value>,
+    label: &str,
+    constraints_content: &mut String,
+    triggers_content: &mut String,
+    headers: &mut String,
+    foreign_keys: &mut Vec<String>,
+    fk_content: &mut String
+) -> Result<(), String> {
+    for column in columns {
+        let column_name =
+            String::from(column["column_name"].as_str().ok_or_else(|| {
+                format!(
+                    "Error when try to get the 'column_name' field in {}",
+                    column
+                )
+            })?);
+        let function_name = format!("{}_{}", label.to_lowercase(), column_name);
+        match &column["foreign_key"] {
+            Value::Null => {
+                let pg_data_type = column["data_type"].as_str().ok_or_else(|| {
+                    format!("Error when try to get the 'data_type' field in {}", column)
+                })?;
+                let data_type = Neo4j::convert_postgresql_type(pg_data_type)
+                    .map_err(|error| format!("{}", error))?;
+
+                if let Some(value) = column["primary_key"].as_bool() {
+                    if value == true {
+                        constraints_content.push_str(&format!("create constraint unique_{} if not exists for (n:{}) require n.{} is unique;\n",
+                        function_name,label,column_name));
+                    }
+                }
+                if let Some(value) = column["is_nullable"].as_str() {
+                    if value == "NO" {
+                        constraints_content.push_str(&format!("create constraint nonull_{} if not exists for (n:{}) require n.{} is not null;\n",
+                        function_name,label,column_name));
+                    }
+                }
+                triggers_content.push_str(&format!(r#"CALL apoc.trigger.add('type_{}',"MATCH (m:{}) WHERE m.{} IS NOT NULL AND NOT valueType(m.{}) = '{}' CALL apoc.util.validate(true, 'ERROR : The type of the field {} need to be a {} .', []) RETURN m",{{phase: 'before'}});{}"#
+                    ,function_name,label,column_name,column_name,data_type,column_name,data_type,"\n"));
+                headers.push_str(&format!("{}:{};", column_name, data_type));
+            }
+            Value::Array(vector) => {
+                let key = String::from(
+                    vector[0]["referenced_table"].as_str().ok_or_else(|| {
+                        format!(
+                            "Error when try to get the 'referenced_table' field in {}",
+                            vector[0]
+                        )
+                    })?,
+                )
+                .to_uppercase();
+                let column_ref_name = String::from(
+                    vector[0]["referenced_column"].as_str().ok_or_else(|| {
+                        format!(
+                            "Error when try to get the 'referenced_column' field in {}",
+                            vector[0]
+                        )
+                    })?,
+                );
+                foreign_keys.push(format!(
+                    "{}__REF__{}",
+                    label,
+                    column_name.to_uppercase()
+                ));
+                fk_content.push_str(&format!(
+                    "{}_REF_{};{};{}\n",
+                    label, key, column_name, column_ref_name
+                ));
+            }
+            _ => {
+                return Err(format!(
+                    "Error when try to match the 'foreign_keys' field in {}",
+                    column
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// This simple function write the ```content``` in the ```file_path```<br>
+/// It use the ```OpenOptions``` struct with the following args :<br>
+/// write = true ; create = true ; truncate = true
+fn write_file(content: String, file_path: &str) -> Result<(), String> {
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(file_path)
+        .map_err(|error| format!("ERROR : when try to open the follosing file : {}\n {}", file_path, error))?;
+    match file.write_all(&content.as_bytes()) {
+        Ok(_) => Ok(()),
+        Err(error) => Err(format!("ERROR : when try to write in {}\n {}", file_path, error))
     }
 }
 
@@ -335,7 +321,7 @@ fn extract_nodes(db_neo4j: &Neo4j, tables_folder: &str) -> Result<String, String
 /// Read the JSON file that contains all the couple of foreign keys of the PostgreSQL database <br>
 /// and save them in the CSV files in the the import folder. <br><br>
 /// **WARNING** this method need to be used after ```&self.extract_csv_headers(...)```
-fn extract_edges(db_neo4j: &Neo4j, foreign_key_path: &str) -> Result<String, String> {
+fn extract_relationships(db_neo4j: &Neo4j, foreign_key_path: &str) -> Result<String, String> {
     let lines = fs::read_to_string(foreign_key_path).map_err(|error| format!("{}", error))?;
     let lines = lines.split("\n").collect::<Vec<&str>>();
 
@@ -433,7 +419,7 @@ pub fn generate_import_files(db_neo4j: &Neo4j,meta_data_path: &str,tables_folder
             match extract_nodes(db_neo4j, tables_folder) {
                 Ok(res) => {
                     println!("{}", res);
-                    match extract_edges(db_neo4j, foreign_key_path) {
+                    match extract_relationships(db_neo4j, foreign_key_path) {
                         Ok(res) => {
                             println!("{}\n\nThe files to do the import are ready. You can stop your neo4j database and use the function 'load_with_admin()'.",res);
                             Ok(res)
