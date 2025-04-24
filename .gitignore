@@ -5,3 +5,4 @@ env.txt
 *csv
 /Neo4j/triggers.cql
 /Neo4j/constraints.cql
+*.pdf

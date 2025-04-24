@@ -12,13 +12,11 @@ use serde_json::Value;
 use crate::neo4j::*;
 use crate::utils::*;
 
+const HEADERS_FK: &str = ":START_ID;:END_ID;:TYPE\n";
+
 /// Generate **CSV** files who contains the **HEADERS** needed to generate and organise the
 /// data to be imported to Neo4j.
-fn create_csv_headers(
-    db_neo4j: &Neo4j,
-    meta_data_path: &str,
-    foreign_key_path: &str,
-) -> Result<String, String> {
+fn process_meta_data(db_neo4j: &Neo4j,meta_data_path: &str,foreign_key_path: &str) -> Result<String, String> {
     if let Err(error) = clean_directory(&db_neo4j.get_import_folder()) {
         return Err(error);
     }
@@ -89,8 +87,8 @@ fn create_csv_headers(
                                     function_name,label,column_name));
                                 }
                             }
-                            triggers_content.push_str(&format!(r#"CALL apoc.trigger.add('type_{}',"MATCH (m:{}) WHERE m.{} IS NOT NULL AND NOT valueType(m.{}) = '{}' CALL apoc.util.validate(true, 'ERROR : The type of the field {} need to be a {} .', []) RETURN m",{{phase: 'before'}});"#
-                                ,function_name,label,column_name,column_name,data_type,column_name,data_type));
+                            triggers_content.push_str(&format!(r#"CALL apoc.trigger.add('type_{}',"MATCH (m:{}) WHERE m.{} IS NOT NULL AND NOT valueType(m.{}) = '{}' CALL apoc.util.validate(true, 'ERROR : The type of the field {} need to be a {} .', []) RETURN m",{{phase: 'before'}});{}"#
+                                ,function_name,label,column_name,column_name,data_type,column_name,data_type,"\n"));
                             headers.push_str(&format!("{}:{};", column_name, data_type));
                         }
                         Value::Array(vector) => {
@@ -145,7 +143,6 @@ fn create_csv_headers(
                     }
                 }
 
-                const HEADERS_FK: &str = ":START_ID;:END_ID;:TYPE\n";
                 for fk in foreign_keys {
                     let file_path = format!("{}{}.csv", db_neo4j.get_import_folder(), fk);
                     let mut file = OpenOptions::new()
@@ -429,13 +426,8 @@ fn extract_edges(db_neo4j: &Neo4j, foreign_key_path: &str) -> Result<String, Str
 }
 
 /// This function generate the files needed to do the import to Neo4J. These files store the database in CSV files in the import folder of the Neo4j object.
-pub fn generate_import_files(
-    db_neo4j: &Neo4j,
-    meta_data_path: &str,
-    tables_folder: &str,
-    foreign_key_path: &str,
-) -> Result<String, String> {
-    match create_csv_headers(db_neo4j, meta_data_path, foreign_key_path) {
+pub fn generate_import_files(db_neo4j: &Neo4j,meta_data_path: &str,tables_folder: &str,foreign_key_path: &str) -> Result<String, String> {
+    match process_meta_data(db_neo4j, meta_data_path, foreign_key_path) {
         Ok(res) => {
             println!("{}", res);
             match extract_nodes(db_neo4j, tables_folder) {

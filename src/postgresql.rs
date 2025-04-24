@@ -15,11 +15,11 @@ pub struct PostgreSQL {
 impl PostgreSQL {
     pub fn new(host: &str, port: &str, username: &str, password: &str, database: &str) -> Self {
         Self {
-            host: host.to_string(),
-            port: port.to_string(),
-            username: username.to_string(),
-            password: password.to_string(),
-            database: database.to_string(),
+            host: String::from(host),
+            port: String::from(port),
+            username: String::from(username),
+            password: String::from(password),
+            database: String::from(database),
         }
     }
 
@@ -92,12 +92,7 @@ impl PostgreSQL {
     /// This method allows you to export the result of the SQL function called ```function_name```
     /// and define in the PostgreSQL script ```script_path``` to the file specified in ```save_path```.
     /// You should use it to export the meta data of your PostgreSQL database.
-    pub fn export_from_sql(
-        &self,
-        script_path: &str,
-        function_name: &str,
-        save_path: &str,
-    ) -> Result<String, String> {
+    pub fn export_from_sql(&self,script_path: &str,function_name: &str,save_path: &str) -> Result<String, String> {
         match &self.execute_script(script_path) {
             Ok(_) => {
                 println!(
@@ -107,15 +102,15 @@ impl PostgreSQL {
                 let query = format!(r"\copy (select {}()) to '{}'", function_name, save_path);
                 match self.execute_query(query.as_str(), false) {
                     Ok(res) => {
-                        return Ok(res);
+                        Ok(res)
                     }
                     Err(error) => {
-                        return Err(error);
+                        Err(error)
                     }
                 }
             }
             Err(error) => {
-                return Err(String::from(error));
+                Err(String::from(error))
             }
         }
     }

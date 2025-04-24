@@ -6,13 +6,13 @@ mod translate;
 mod utils;
 
 fn main() {
-    match example() {
+    match demo() {
         Ok(_) => println!("\n\nSuccessfully migrate the database to Neo4j !"),
         Err(error) => println!("{}", error),
     }
 }
 
-fn example() -> Result<(), String> {
+fn demo() -> Result<(), String> {
     use format_to_neo4j::*;
     use load_to_neo4j::*;
     use neo4j::Neo4j;

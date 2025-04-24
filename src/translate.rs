@@ -8,10 +8,7 @@ use sqlparser::parser::Parser;
 
 #[allow(unused)]
 /// Return the node from the ```TableFactor``` object.
-fn from_table_factor(
-    table_factor: TableFactor,
-    hashmap: &mut HashMap<String, String>,
-) -> Result<(), ()> {
+fn from_table_factor(table_factor: TableFactor,hashmap: &mut HashMap<String, String>) -> Result<(), ()> {
     let mut res_alias = String::new();
     if let TableFactor::Table {
         name,
@@ -46,18 +43,16 @@ fn from_table_factor(
 }
 
 #[allow(unused)]
-fn from_join_constraint(
-    join_constraint: JoinConstraint,
-) -> Result<(String, String, String, String), ()> {
+fn from_join_constraint(join_constraint: JoinConstraint) -> Result<(String, String, String, String), ()> {
     if let JoinConstraint::On(Expr::BinaryOp { left, op, right }) = join_constraint {
         if let Expr::CompoundIdentifier(vector1) = *left {
             if let Expr::CompoundIdentifier(vector2) = *right {
                 // Return : alias1 column1 alias2 column2
                 Ok((
-                    vector1[0].value.clone(),
-                    vector1[1].value.clone(),
-                    vector2[0].value.clone(),
-                    vector2[1].value.clone(),
+                    String::clone(&vector1[0].value),
+                    String::clone(&vector1[1].value),
+                    String::clone(&vector2[0].value),
+                    String::clone(&vector2[1].value),
                 ))
             } else {
                 Err(())
@@ -136,10 +131,7 @@ fn from_join(join: Join, hashmap: &mut HashMap<String, String>) -> Result<(), ()
 }
 
 #[allow(unused)]
-fn from_table_with_joins(
-    table_with_joins: TableWithJoins,
-    hashmap: &mut HashMap<String, String>,
-) -> Result<(), ()> {
+fn from_table_with_joins(table_with_joins: TableWithJoins,hashmap: &mut HashMap<String, String>) -> Result<(), ()> {
     match from_table_factor(table_with_joins.relation, hashmap) {
         Ok(_) => {
             for join in table_with_joins.joins {
@@ -154,10 +146,7 @@ fn from_table_with_joins(
 }
 
 #[allow(unused)]
-fn from_statement(
-    vector_twj: Vec<TableWithJoins>,
-    hashmap: &mut HashMap<String, String>,
-) -> Result<(), ()> {
+fn from_statement(vector_twj: Vec<TableWithJoins>,hashmap: &mut HashMap<String, String>) -> Result<(), ()> {
     for table_with_joins in vector_twj {
         if let Err(_) = from_table_with_joins(table_with_joins, hashmap) {
             return Err(());
@@ -167,10 +156,7 @@ fn from_statement(
 }
 
 #[allow(unused)]
-fn select_select_item(
-    select_item: SelectItem,
-    hashmap: &mut HashMap<String, String>,
-) -> Result<(), ()> {
+fn select_select_item(select_item: SelectItem,hashmap: &mut HashMap<String, String>) -> Result<(), ()> {
     match select_item {
         SelectItem::UnnamedExpr(Expr::CompoundIdentifier(vector)) => {
             if let Some(return_clause) = hashmap.get_mut("return") {
@@ -185,10 +171,7 @@ fn select_select_item(
 }
 
 #[allow(unused)]
-fn select_statement(
-    vector_si: Vec<SelectItem>,
-    hashmap: &mut HashMap<String, String>,
-) -> Result<(), ()> {
+fn select_statement(vector_si: Vec<SelectItem>,hashmap: &mut HashMap<String, String>) -> Result<(), ()> {
     for select_item in vector_si {
         if let Err(_) = select_select_item(select_item, hashmap) {
             return Err(());

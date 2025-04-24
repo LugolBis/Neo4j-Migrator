@@ -3,4 +3,3 @@
 PostgreSQL/meta_data.sql linguist-detectable=true linguist-language=SQL
 Neo4j/*.cql linguist-detectable=true linguist-language=Cypher
 src/*.rs linguist-detectable=true linguist-language=Rust
-MongoDB/*.js linguist-detectable=true linguist-language=MongoDB
