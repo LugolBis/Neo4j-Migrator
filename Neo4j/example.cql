@@ -29,6 +29,7 @@ CALL apoc.trigger.add(
 
 // With LOAD CSV :
 // Note that you could apply this with local files and add "WITH HEADERS" for more control
+// DEPRECATED
 LOAD CSV FROM 'https://cdn.jsdelivr.net/gh/LugolBis/DB-Migrator@master/Data/editeurs.csv' AS line
 WITH line
 WHERE size(line) >= 3 AND line[0] <> ''

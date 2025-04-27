@@ -6,7 +6,7 @@ use std::fs::{self, DirEntry};
 use std::io::Write;
 use std::path::Path;
 
-use polars::prelude::*;
+use polars::prelude::{CsvReadOptions, CsvWriter, Series, Column, DataFrame, StringChunked, IntoColumn, SerWriter, SerReader, NamedFrom, DataFrameJoinOps};
 use serde_json::Value;
 
 use crate::neo4j::*;
@@ -103,7 +103,7 @@ fn process_meta_data(db_neo4j: &Neo4j,meta_data_path: &str,foreign_key_path: &st
             }
 
             write_file(fk_content, foreign_key_path)?;
-            println!("\nSuccessfully write the ./Neo4J/FK.CSV file");
+            println!("\nSuccessfully write the {} file", foreign_key_path);
 
             Ok(String::from("\nSuccessfully create and write the Headers for the Neo4j import."))
         }
@@ -113,6 +113,7 @@ fn process_meta_data(db_neo4j: &Neo4j,meta_data_path: &str,foreign_key_path: &st
     }
 }
 
+/// Process on the meta-data for each column.
 fn process_columns(
     columns: &Vec<Value>,
     label: &str,
@@ -174,12 +175,12 @@ fn process_columns(
                     })?,
                 );
                 foreign_keys.push(format!(
-                    "{}__REF__{}",
+                    "{}_ref_{}",
                     label,
                     column_name.to_uppercase()
                 ));
                 fk_content.push_str(&format!(
-                    "{}_REF_{};{};{}\n",
+                    "{}_ref_{};{};{}\n",
                     label, key, column_name, column_ref_name
                 ));
             }
@@ -321,24 +322,24 @@ fn extract_nodes(db_neo4j: &Neo4j, tables_folder: &str) -> Result<String, String
 /// Read the JSON file that contains all the couple of foreign keys of the PostgreSQL database <br>
 /// and save them in the CSV files in the the import folder. <br><br>
 /// **WARNING** this method need to be used after ```&self.extract_csv_headers(...)```
-fn extract_relationships(db_neo4j: &Neo4j, foreign_key_path: &str) -> Result<String, String> {
+fn extract_relationships(db_neo4j: &Neo4j, tables_folder: &str, foreign_key_path: &str) -> Result<String, String> {
     let lines = fs::read_to_string(foreign_key_path).map_err(|error| format!("{}", error))?;
     let lines = lines.split("\n").collect::<Vec<&str>>();
 
     for line in lines {
         if line != "" {
             let elements = line.split(";").collect::<Vec<&str>>();
-            let tables = elements[0].split("_REF_").collect::<Vec<&str>>();
+            let tables = elements[0].split("_ref_").collect::<Vec<&str>>();
             let table1 = tables[0];
             let table2 = tables[1];
             let column1 = elements[1];
             let column2 = elements[2];
-            let label = format!("{}__REF__{}", table1, column1.to_uppercase());
+            let label = format!("{}_ref_{}", table1, column1.to_uppercase());
 
             let mut df1 = CsvReadOptions::default()
                 .with_has_header(true)
                 .try_into_reader_with_file_path(Some(
-                    format!("./Data/{}.csv", table1.to_lowercase()).into(),
+                    format!("{}{}.csv", tables_folder, table1.to_lowercase()).into(),
                 ))
                 .map_err(|e| format!("{}", e))?
                 .finish()
@@ -353,7 +354,7 @@ fn extract_relationships(db_neo4j: &Neo4j, foreign_key_path: &str) -> Result<Str
             let mut df2 = CsvReadOptions::default()
                 .with_has_header(true)
                 .try_into_reader_with_file_path(Some(
-                    format!("./Data/{}.csv", table2.to_lowercase()).into(),
+                    format!("{}{}.csv", tables_folder, table2.to_lowercase()).into(),
                 ))
                 .map_err(|e| format!("{}", e))?
                 .finish()
@@ -419,7 +420,7 @@ pub fn generate_import_files(db_neo4j: &Neo4j,meta_data_path: &str,tables_folder
             match extract_nodes(db_neo4j, tables_folder) {
                 Ok(res) => {
                     println!("{}", res);
-                    match extract_relationships(db_neo4j, foreign_key_path) {
+                    match extract_relationships(db_neo4j, tables_folder, foreign_key_path) {
                         Ok(res) => {
                             println!("{}\n\nThe files to do the import are ready. You can stop your neo4j database and use the function 'load_with_admin()'.",res);
                             Ok(res)

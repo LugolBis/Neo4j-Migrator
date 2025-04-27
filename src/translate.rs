@@ -77,7 +77,7 @@ fn from_join(join: Join, hashmap: &mut HashMap<String, String>) -> Result<(), ()
                     let node2 = String::clone(hashmap.get(&result.2).ok_or_else(|| ())?);
                     if let Some(match_clause) = hashmap.get_mut("match") {
                         match_clause.push_str(&format!(
-                            "{}-[r{}{}{}:{}__REF__{}]-{},",
+                            "{}-[r{}{}{}:{}_ref_{}]-{},",
                             node1, result.0, result.2, result.3, label1, result.1, node2
                         ));
                     }
@@ -96,7 +96,7 @@ fn from_join(join: Join, hashmap: &mut HashMap<String, String>) -> Result<(), ()
                     }
                     if let Some(match_clause) = hashmap.get_mut("optional match") {
                         match_clause.push_str(&format!(
-                            "{}-[r{}{}{}:{}__REF__{}]-{},",
+                            "{}-[r{}{}{}:{}_ref_{}]-{},",
                             node1, result.0, result.2, result.3, label1, result.1, node2
                         ));
                     }
@@ -115,7 +115,7 @@ fn from_join(join: Join, hashmap: &mut HashMap<String, String>) -> Result<(), ()
                     }
                     if let Some(match_clause) = hashmap.get_mut("optional match") {
                         match_clause.push_str(&format!(
-                            "{}-[r{}{}{}:{}__REF__{}]-{},",
+                            "{}-[r{}{}{}:{}_ref_{}]-{},",
                             node1, result.0, result.2, result.3, label1, result.1, node2
                         ));
                     }

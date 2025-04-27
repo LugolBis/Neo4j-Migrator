@@ -8,6 +8,7 @@
 
 #set align(left)
 #set text(
+    lang: "fr",
     size: 20pt
 )
 
@@ -80,7 +81,7 @@ Comment garder la cohérence sémantique en passant d'un modèle à l'autre ?
         [
             Modèle _Relationnel_ : Commande (*id*, #underline[user], price)
 
-            Nom de la *Relation* : COMMANDE\_\_REF\_\_USER
+            Nom de la *Relation* : COMMANDE\_ref\_USER
         ]
     )
 
@@ -119,7 +120,7 @@ Comment garder la cohérence d'un graphe ?
 == 2 - Transformation des données :
 #line(start:(0pt, 2pt), length: 0%)
 
-=== 2.1 : Génération des Headers des CSV & Génération des contraintes d'intégritées
+=== 2.1 : Génération des Headers des CSV & Génération des contraintes d'intégrités
     #line(start:(0pt, 4pt), length: 0%)
 === 2.2 : Extraction et formatage des Noeuds
     #line(start:(0pt, 4pt), length: 0%)
@@ -130,7 +131,7 @@ Comment garder la cohérence d'un graphe ?
 == Neo4j-Migrator : _PostgreSQL_ $->$ _Neo4j_
 #line(start:(0pt, 25pt), length: 0%)
 
-== 2.1 - Génération des Headers des CSV & Génération des contraintes d'intégritées
+== 2.1 - Génération des Headers des CSV & Génération des contraintes d'intégrités
 #line(start:(0pt, 2pt), length: 0%)
 
 À partir des méta données :
@@ -155,7 +156,7 @@ On distingue donc les *colonnes* qui sont des *clés étrangères* (*Relation*) 
 == Neo4j-Migrator : _PostgreSQL_ $->$ _Neo4j_
 #line(start:(0pt, 25pt), length: 0%)
 
-== 2.1 - Génération des Headers des CSV & Génération des contraintes d'intégritées
+== 2.1 - Génération des Headers des CSV & Génération des contraintes d'intégrités
 #line(start:(0pt, 2pt), length: 0%)
 
 Toujours à partir des méta données :
@@ -174,3 +175,73 @@ Toujours à partir des méta données :
         radius: 4pt,
         [CALL apoc.trigger.add('TID', "MATCH (m:ORDERS) WHERE m.NAME IS NOT NULL AND NOT valueType(m.NAME) = 'STRING' CALL apoc.util.validate(true, 'ERROR', []) RETURN m", {phase: 'before'});]
     )
+
+#pagebreak()
+== Neo4j-Migrator : _PostgreSQL_ $->$ _Neo4j_
+#line(start:(0pt, 25pt), length: 0%)
+
+== 2.2 - Extraction et formatage des Noeuds
+#line(start:(0pt, 2pt), length: 0%)
+
++ On lit le dossier contenant les tables au format CSV.
+
++ On les charge dans des *DataFrame* et on filtre pour ne garder \
+    que les *colonnes* présentes dans le fichier de Headers correspondant \
+    dans le dossier d'import.
+
++ On ajoute une nouvelle colonne _*ID*_ contenant les id générés \
+    (_LABEL_ + _ROWNUM_)
+
++ On ajoute une dernière colonne contenant le _*Label*_.
+
+#pagebreak()
+== Neo4j-Migrator : _PostgreSQL_ $->$ _Neo4j_
+#line(start:(0pt, 25pt), length: 0%)
+
+== 2.3 - Extraction et formatage des Relations
+#line(start:(0pt, 2pt), length: 0%)
+
++ On lit le fichier contenant les tuples : *table*, *colonne référençant*, \
+    *table référencée*, *colonne référencée* (précédemment généré)
+
++ On charge dans deux *DataFrame* distincts les deux tables.
+
++ On fait la jointure entre les deux *DataFrame*.
+
++ On ajoute une dernière colonne contenant le "_*Label*_" de la relation.
+
+#pagebreak()
+== Neo4j-Migrator : _PostgreSQL_ $->$ _Neo4j_
+#line(start:(0pt, 25pt), length: 0%)
+
+== 3 - Export massif vers _Neo4j_
+#line(start:(0pt, 2pt), length: 0%)
+
+On construit la commande *shell* permettant de réaliser l'import massif \
+à partir du dossier d'import de la base de données _Neo4j_ cible.
+
+On utilise ici l'outil d'import massif : *```shell neo4j-admin```*
+
+#pagebreak()
+== Neo4j-Migrator : Génération de requêtes _Cypher_
+#line(start:(0pt, 25pt), length: 0%)
+
+=== Traduction de requête _SQL_ en requête _Cypher_ :
+#line(start:(0pt, 4pt), length: 0%)
+
+- Construction de l'*AST* d'une requête à l'aide de _sql_parser_
+    #line(start:(0pt, 2pt), length: 0%)
+- Extraction des données du *select* et du *from* dans une table de hachage
+    #line(start:(0pt, 2pt), length: 0%)
+- Formatage des données pour construire la requête _Cypher_
+
+#pagebreak()
+= Neo4j-Migrator
+#line(start:(0pt, 60pt), length: 0%)
+
+#set align(center)
+#text(
+    size: 60pt,
+    dir:rtl,
+    [*Conclusion*]
+)

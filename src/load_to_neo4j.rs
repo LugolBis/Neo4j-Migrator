@@ -12,7 +12,7 @@ use crate::neo4j::Neo4j;
 /// **WARNING** : This method construct the command 'neo4j-admin import' by detecting <br>
 /// the **CSV** files in the folder, you need to assert that there isn't other CSV files <br>
 /// than these you need for the import. Moreover assert that the CSV files who are contain the <br>
-/// *relationships* have '_REF_' in their name.
+/// *relationships* have '_ref_' in their name.
 pub fn load_with_admin(db_neo4j: &Neo4j) -> Result<String, String> {
     if let Err(error) = env::set_current_dir(Path::new(db_neo4j.get_import_folder())) {
         return Err(format!("{}", error));
@@ -37,7 +37,7 @@ pub fn load_with_admin(db_neo4j: &Neo4j) -> Result<String, String> {
                 .collect::<Vec<DirEntry>>();
             for entry in entries {
                 let file_name = entry.file_name().into_string().unwrap_or_default();
-                match (&file_name.find("__REF__"), &file_name.ends_with(".csv")) {
+                match (&file_name.find("_ref_"), &file_name.ends_with(".csv")) {
                     (Some(_), true) => {
                         relationships.push(file_name);
                     }

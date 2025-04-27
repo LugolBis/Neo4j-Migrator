@@ -54,7 +54,7 @@ limit 10;
 ```
 Or
 ```CYPHER
-match (o:ORDERS)-[r:ORDERS__REF__CUSTOMER_ID]-(c)
+match (o:ORDERS)-[r:ORDERS_ref_CUSTOMER_ID]-(c)
 return o.order_id, o.order_date, o.shipped_date, c.customer_id, o.freight
 order by o.freight desc
 limit 10;
@@ -230,6 +230,6 @@ LEFT JOIN employees b ON b.EmployeeID = a.ReportsTo;
 Cypher :
 ```Cypher
 match (a:EMPLOYEES)
-optional match (a)-[:EMPLOYEES__REF__REPORTS_TO]->(b:EMPLOYEES)
+optional match (a)-[:EMPLOYEES_ref_REPORTS_TO]->(b:EMPLOYEES)
 return a.last_name as employee, b.last_name as manager;
 ```
