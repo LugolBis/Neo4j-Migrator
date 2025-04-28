@@ -26,7 +26,7 @@
 == Neo4j-Migrator : _Relationnel_ $->$ _Graphe_
 ==
 ==
-== Quels sont les concepts principaux du model _Relationnel_ ?
+== Quels sont les concepts principaux du modèle _Relationnel_ ?
 ===
 - Les *Tables* $->$ structurent et traduisent des *concepts*
 
@@ -79,8 +79,7 @@ Comment garder la cohérence sémantique en passant d'un modèle à l'autre ?
         inset: 8pt,
         radius: 4pt,
         [
-            Modèle _Relationnel_ : Commande (*id*, #underline[user], price)
-
+            Modèle _Relationnel_ : Commande (*id*, #underline[user], price)\
             Nom de la *Relation* : COMMANDE\_ref\_USER
         ]
     )
@@ -214,7 +213,7 @@ Toujours à partir des méta données :
 == Neo4j-Migrator : _PostgreSQL_ $->$ _Neo4j_
 #line(start:(0pt, 25pt), length: 0%)
 
-== 3 - Export massif vers _Neo4j_
+== 3 - Chargement massif vers _Neo4j_
 #line(start:(0pt, 2pt), length: 0%)
 
 On construit la commande *shell* permettant de réaliser l'import massif \
