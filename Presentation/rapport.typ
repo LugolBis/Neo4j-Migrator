@@ -27,14 +27,16 @@
     <s1>,
     <s2>,
     <s3>,
-    <s4>
+    <s4>,
+    <s5>
 )
 
 #let sections = (
     "Introduction",
     "Transformation du modèle Relationnel au modèle Graphe",
     "Migration d’une BDD PostgreSQL vers Neo4j",
-    "Génération de requêtes Cypher"
+    "Génération de requêtes Cypher",
+    "Implémentation"
 )
 
 // Table content :
@@ -226,3 +228,18 @@ On traduit les concepts du _SQL_ ainsi :\
 - La clause *from* est traduite par la clause *match* pour les tables simplements sélectionnées et pour les jointure simples. Les jointures plus complexes sont traduites à l'aide
     de la clause *match optionnal*.
 - La clause *select* est traduite par la clause *return*.
+#jump(10)
+
+// Rust
+== #5 - #sections.at(4) <s5>
+#jump(2)
+#alinea _*Rust*_ a été retenu pour ses très bonnes performances comparées à des langages comme _*Python*_. En effet le _*Rust*_ offre de bien 
+meilleures performances, ce qui fut un choix déterminant pour le développement d'un projet voué à traiter de gros volumes de données.\
+#alinea De plus dans le cadre de transformation de données ne nécessitant pas la manipulation de structures de données trop complexes (qui pourraient être plus complexe
+à manipuler à cause des notions d'emprunt), _*Rust*_ s'impose comme une solution naturelle et simple d'utilisation pour manipuler des fichiers.
+Enfin il est aisé d'intégrer des crates (module) très puissant tel que _*Polars*_, qui est une crate développé en _*Rust*_ permettant de manipuler simplement des _*DataFrame*_,
+dont les opérations sont optimisées et parallélisées.
+#jump(2)
+#alinea Les connexions aux bases de données _*PostgreSQL*_ et _*Neo4j*_ sont implémentées avec deux structures permettant d'interfacer avec celles-ci via leur CLI respective.
+Elles mettent donc en place une abstraction sans coût pour communiquer facilement avec les bases de données.
+Une autre crate nommée _*serde_json*_ est utilisée pour interpréter et manipuler les métadonnées stockées dans un fichier JSON.
