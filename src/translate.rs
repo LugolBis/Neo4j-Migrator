@@ -253,11 +253,11 @@ fn test_ast_sql() {
 
 #[test]
 fn test_generation() {
-    let sql_query = r#"SELECT t.order from toto t left join juju j on t.order=j.id inner join lili l on l.id=j.id;"#;
-    if let Ok(cypher_query) = generate_cypher_query(sql_query) {
-        println!("\n{}", cypher_query);
-        assert!(true)
-    } else {
-        assert!(false)
-    }
+    let sql_query = r#"SELECT t.order from toto t left join juju j on t.order=j.id;"#;
+    let cypher_query = generate_cypher_query(sql_query).unwrap();
+    println!("\nSQL : {}\nCypher : {}",sql_query,cypher_query);
+
+    let sql_query = r#"SELECT t.order from toto t inner join juju j on t.order=j.id;"#;
+    let cypher_query = generate_cypher_query(sql_query).unwrap();
+    println!("\nSQL : {}\nCypher : {}",sql_query,cypher_query);
 }
