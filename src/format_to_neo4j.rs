@@ -24,9 +24,7 @@ fn process_meta_data(
     meta_data_path: &str,
     foreign_key_path: &str,
 ) -> Result<String, String> {
-    if let Err(error) = clean_directory(&db_neo4j.get_import_folder()) {
-        return Err(error);
-    }
+    clean_directory(db_neo4j.get_import_folder())?;
 
     let content = fs::read_to_string(meta_data_path).map_err(|error| format!("{}", error))?;
 
@@ -88,32 +86,16 @@ fn process_meta_data(
             }
 
             match write_file(constraints_content, &constraints_path) {
-                Ok(_) => match db_neo4j.execute_script(&constraints_path) {
-                    Ok(_) => println!(
-                        "\nSuccessfully create and run the Cypher script : {}\n",
-                        constraints_path
-                    ),
-                    Err(error) => {
-                        return Err(format!("{}", error));
-                    }
-                },
+                Ok(_) => println!("Successfully write the Constraint script."),
                 Err(error) => {
-                    return Err(format!("{}", error));
+                    return Err(error.to_string());
                 }
             }
 
             match write_file(triggers_content, &triggers_path) {
-                Ok(_) => match db_neo4j.execute_script(&triggers_path) {
-                    Ok(_) => println!(
-                        "\nSuccessfully create and run the Cypher script : {}\n",
-                        triggers_path
-                    ),
-                    Err(error) => {
-                        return Err(format!("{}", error));
-                    }
-                },
+                Ok(_) => println!("Successfully write the Trigger script."),
                 Err(error) => {
-                    return Err(format!("{}", error));
+                    return Err(error.to_string());
                 }
             }
 
@@ -155,10 +137,10 @@ fn process_columns(
                     format!("Error when try to get the 'data_type' field in {}", column)
                 })?;
                 let data_type = Neo4j::convert_postgresql_type(pg_data_type)
-                    .map_err(|error| format!("{}", error))?;
+                    .map_err(|error| error.to_string())?;
 
                 if let Some(value) = column["primary_key"].as_bool() {
-                    if value == true {
+                    if value {
                         constraints_content.push_str(&format!("create constraint unique_{} if not exists for (n:{}) require n.{} is unique;\n",
                         function_name,label,column_name));
                     }
@@ -169,8 +151,11 @@ fn process_columns(
                         function_name,label,column_name));
                     }
                 }
-                triggers_content.push_str(&format!(r#"CALL apoc.trigger.add('type_{}',"MATCH (m:{}) WHERE m.{} IS NOT NULL AND NOT valueType(m.{}) = '{}' CALL apoc.util.validate(true, 'ERROR : The type of the field {} need to be a {} .', []) RETURN m",{{phase: 'before'}});{}"#
-                    ,function_name,label,column_name,column_name,data_type,column_name,data_type,"\n"));
+
+                triggers_content.push_str(&format!(
+                    "CREATE CONSTRAINT type_{} FOR (n: {}) REQUIRE n.{} IS :: {}",
+                    function_name, label, column_name, data_type,
+                ));
                 headers.push_str(&format!("{}:{};", column_name, data_type));
             }
             Value::Array(vector) => {
@@ -221,7 +206,7 @@ fn write_file(content: String, file_path: &str) -> Result<(), String> {
                 file_path, error
             )
         })?;
-    match file.write_all(&content.as_bytes()) {
+    match file.write_all(content.as_bytes()) {
         Ok(_) => Ok(()),
         Err(error) => Err(format!(
             "ERROR : when try to write in {}\n {}",
@@ -237,10 +222,7 @@ fn extract_nodes(db_neo4j: &Neo4j, tables_folder: &str) -> Result<String, String
     let path = Path::new(tables_folder);
     match fs::read_dir(path) {
         Ok(entries) => {
-            let entries = entries
-                .filter(|e| e.is_ok())
-                .map(|x| x.unwrap())
-                .collect::<Vec<DirEntry>>();
+            let entries = entries.flatten().collect::<Vec<DirEntry>>();
             for entry in entries {
                 let file_name = entry.file_name().into_string().unwrap_or_default();
                 if file_name.ends_with(".csv") {
@@ -300,7 +282,7 @@ fn extract_nodes(db_neo4j: &Neo4j, tables_folder: &str) -> Result<String, String
                             .map(|_| String::clone(&label))
                             .collect::<Vec<String>>(),
                     );
-                    let mut df = df.with_column(label_series).map_err(|e| {
+                    let df = df.with_column(label_series).map_err(|e| {
                         format!(
                             "ERROR : when try to insert the label column in {}\n{}",
                             file_name, e
@@ -319,7 +301,7 @@ fn extract_nodes(db_neo4j: &Neo4j, tables_folder: &str) -> Result<String, String
                     if let Err(error) = CsvWriter::new(&mut file)
                         .include_header(false)
                         .with_separator(b';')
-                        .finish(&mut df)
+                        .finish(df)
                     {
                         return Err(format!(
                             "ERROR : when try to write the Dataframe of {}\n{}",
@@ -350,7 +332,7 @@ fn extract_relationships(
     let lines = lines.split("\n").collect::<Vec<&str>>();
 
     for line in lines {
-        if line != "" {
+        if !line.is_empty() {
             let elements = line.split(";").collect::<Vec<&str>>();
             let tables = elements[0].split("_ref_").collect::<Vec<&str>>();
             let table1 = tables[0];
@@ -369,7 +351,7 @@ fn extract_relationships(
                 .map_err(|e| format!("{}", e))?;
 
             let mut df1_id =
-                generate_id_column(&df1, table1, "row_id1").map_err(|e| format!("{}", e))?;
+                generate_id_column(&df1, table1, "row_id1").map_err(|e| e.to_string())?;
             df1_id.rename("row_id1".into());
 
             let df1 = df1.insert_column(0, df1_id).map_err(|e| format!("{}", e))?;
@@ -384,18 +366,18 @@ fn extract_relationships(
                 .map_err(|e| format!("{}", e))?;
 
             let mut df2_id =
-                generate_id_column(&df2, table2, "row_id2").map_err(|e| format!("{}", e))?;
+                generate_id_column(&df2, table2, "row_id2").map_err(|e| e.to_string())?;
             df2_id.rename("row_id2".into());
 
             let df2 = df2.insert_column(0, df2_id).map_err(|e| format!("{}", e))?;
 
             let mut df = df1
-                .inner_join(&df2, [column1], [column2])
+                .inner_join(df2, [column1], [column2])
                 .map_err(|e| format!("{}", e))?
                 .select(["row_id1", "row_id2"])
                 .map_err(|e| format!("{}", e))?;
 
-            let mut df = df
+            let df = df
                 .with_column(Series::new(
                     "line_number".into(),
                     (0..df.height())
@@ -411,7 +393,6 @@ fn extract_relationships(
 
             let file_path = format!("{}{}.csv", db_neo4j.get_import_folder(), label);
             let mut file = OpenOptions::new()
-                .write(true)
                 .create(false)
                 .append(true)
                 .truncate(false)
@@ -421,7 +402,7 @@ fn extract_relationships(
             if let Err(error) = CsvWriter::new(&mut file)
                 .include_header(false)
                 .with_separator(b';')
-                .finish(&mut df)
+                .finish(df)
             {
                 return Err(format!(
                     "ERROR : when try to write the Dataframe of {}\n{}",

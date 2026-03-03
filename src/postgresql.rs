@@ -51,11 +51,11 @@ impl PostgreSQL {
         if output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);
             let result = format!("{}", stdout);
-            return Ok(result);
+            Ok(result)
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
             let result = format!("{}", stderr);
-            return Err(result);
+            Err(result)
         }
     }
 
@@ -81,11 +81,11 @@ impl PostgreSQL {
         if output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);
             let result = format!("{}", stdout);
-            return Ok(result);
+            Ok(result)
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
             let result = format!("{}", stderr);
-            return Err(result);
+            Err(result)
         }
     }
 

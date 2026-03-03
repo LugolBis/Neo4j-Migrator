@@ -2,7 +2,6 @@ mod format_to_neo4j;
 mod load_to_neo4j;
 mod neo4j;
 mod postgresql;
-mod translate;
 mod utils;
 
 fn main() {
@@ -24,12 +23,12 @@ fn demo() -> Result<(), String> {
     let current_dir = format!("{}", env::current_dir().unwrap().display());
 
     // Your personnal informations about the connections of the databases
-    let infos = fs::read_to_string("env.txt").map_err(|error| format!("{}", error))?;
+    let infos = fs::read_to_string(".env").map_err(|error| format!("{}", error))?;
     let infos = infos.split("\n").collect::<Vec<&str>>();
 
     let db_postgresql = PostgreSQL::new(infos[0], infos[1], infos[2], infos[3], infos[4]);
 
-    let mut db_neo4j = Neo4j::new(infos[5], infos[6], infos[7], infos[8], "");
+    let db_neo4j = Neo4j::new(infos[5], infos[6]);
 
     // PostgreSQL part
 
@@ -57,14 +56,8 @@ fn demo() -> Result<(), String> {
 
     // Neo4J part
 
-    match db_neo4j.configure_db_on_linux() {
-        Ok(result) => {
-            println!("{}", result);
-            match generate_import_files(&db_neo4j, &save_meta_data, &tables_folder, &save_fk) {
-                Ok(result) => println!("{}", result),
-                Err(result) => println!("{}", result),
-            }
-        }
+    match generate_import_files(&db_neo4j, &save_meta_data, &tables_folder, &save_fk) {
+        Ok(result) => println!("{}", result),
         Err(result) => println!("{}", result),
     }
 
