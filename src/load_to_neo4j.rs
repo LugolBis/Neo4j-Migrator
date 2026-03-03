@@ -143,4 +143,3 @@ pub fn recovery_database(db_neo4j: &Neo4j) -> Result<String, String> {
         }
     }
 }
-

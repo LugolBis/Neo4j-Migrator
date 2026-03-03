@@ -6,7 +6,10 @@ use std::fs::{self, DirEntry};
 use std::io::Write;
 use std::path::Path;
 
-use polars::prelude::{CsvReadOptions, CsvWriter, Series, Column, DataFrame, StringChunked, IntoColumn, SerWriter, SerReader, NamedFrom, DataFrameJoinOps};
+use polars::prelude::{
+    Column, CsvReadOptions, CsvWriter, DataFrame, DataFrameJoinOps, IntoColumn, NamedFrom,
+    SerReader, SerWriter, Series, StringChunked,
+};
 use serde_json::Value;
 
 use crate::neo4j::*;
@@ -16,7 +19,11 @@ const HEADERS_FK: &str = ":START_ID;:END_ID;:TYPE\n";
 
 /// Generate **CSV** files who contains the **HEADERS** needed to generate and organise the
 /// data to be imported to Neo4j.
-fn process_meta_data(db_neo4j: &Neo4j,meta_data_path: &str,foreign_key_path: &str) -> Result<String, String> {
+fn process_meta_data(
+    db_neo4j: &Neo4j,
+    meta_data_path: &str,
+    foreign_key_path: &str,
+) -> Result<String, String> {
     if let Err(error) = clean_directory(&db_neo4j.get_import_folder()) {
         return Err(error);
     }
@@ -58,7 +65,15 @@ fn process_meta_data(db_neo4j: &Neo4j,meta_data_path: &str,foreign_key_path: &st
                     format!("Error when try to get the 'columns' field in {}", table)
                 })?;
 
-                process_columns(columns,label.as_str(),&mut constraints_content, &mut triggers_content, &mut headers, &mut foreign_keys, &mut fk_content)?;
+                process_columns(
+                    columns,
+                    label.as_str(),
+                    &mut constraints_content,
+                    &mut triggers_content,
+                    &mut headers,
+                    &mut foreign_keys,
+                    &mut fk_content,
+                )?;
 
                 headers.push_str(":LABEL\n");
                 let file_path = format!("{}{}.csv", db_neo4j.get_import_folder(), label);
@@ -105,11 +120,14 @@ fn process_meta_data(db_neo4j: &Neo4j,meta_data_path: &str,foreign_key_path: &st
             write_file(fk_content, foreign_key_path)?;
             println!("\nSuccessfully write the {} file", foreign_key_path);
 
-            Ok(String::from("\nSuccessfully create and write the Headers for the Neo4j import."))
+            Ok(String::from(
+                "\nSuccessfully create and write the Headers for the Neo4j import.",
+            ))
         }
-        _ => {
-            Err(format!("Expected a Value::Object(Map<_,_>) but found :\n{}",json_object))
-        }
+        _ => Err(format!(
+            "Expected a Value::Object(Map<_,_>) but found :\n{}",
+            json_object
+        )),
     }
 }
 
@@ -121,16 +139,15 @@ fn process_columns(
     triggers_content: &mut String,
     headers: &mut String,
     foreign_keys: &mut Vec<String>,
-    fk_content: &mut String
+    fk_content: &mut String,
 ) -> Result<(), String> {
     for column in columns {
-        let column_name =
-            String::from(column["column_name"].as_str().ok_or_else(|| {
-                format!(
-                    "Error when try to get the 'column_name' field in {}",
-                    column
-                )
-            })?);
+        let column_name = String::from(column["column_name"].as_str().ok_or_else(|| {
+            format!(
+                "Error when try to get the 'column_name' field in {}",
+                column
+            )
+        })?);
         let function_name = format!("{}_{}", label.to_lowercase(), column_name);
         match &column["foreign_key"] {
             Value::Null => {
@@ -157,28 +174,22 @@ fn process_columns(
                 headers.push_str(&format!("{}:{};", column_name, data_type));
             }
             Value::Array(vector) => {
-                let key = String::from(
-                    vector[0]["referenced_table"].as_str().ok_or_else(|| {
+                let key =
+                    String::from(vector[0]["referenced_table"].as_str().ok_or_else(|| {
                         format!(
                             "Error when try to get the 'referenced_table' field in {}",
                             vector[0]
                         )
-                    })?,
-                )
-                .to_uppercase();
-                let column_ref_name = String::from(
-                    vector[0]["referenced_column"].as_str().ok_or_else(|| {
+                    })?)
+                    .to_uppercase();
+                let column_ref_name =
+                    String::from(vector[0]["referenced_column"].as_str().ok_or_else(|| {
                         format!(
                             "Error when try to get the 'referenced_column' field in {}",
                             vector[0]
                         )
-                    })?,
-                );
-                foreign_keys.push(format!(
-                    "{}_ref_{}",
-                    label,
-                    column_name.to_uppercase()
-                ));
+                    })?);
+                foreign_keys.push(format!("{}_ref_{}", label, column_name.to_uppercase()));
                 fk_content.push_str(&format!(
                     "{}_ref_{};{};{}\n",
                     label, key, column_name, column_ref_name
@@ -204,10 +215,18 @@ fn write_file(content: String, file_path: &str) -> Result<(), String> {
         .create(true)
         .truncate(true)
         .open(file_path)
-        .map_err(|error| format!("ERROR : when try to open the follosing file : {}\n {}", file_path, error))?;
+        .map_err(|error| {
+            format!(
+                "ERROR : when try to open the follosing file : {}\n {}",
+                file_path, error
+            )
+        })?;
     match file.write_all(&content.as_bytes()) {
         Ok(_) => Ok(()),
-        Err(error) => Err(format!("ERROR : when try to write in {}\n {}", file_path, error))
+        Err(error) => Err(format!(
+            "ERROR : when try to write in {}\n {}",
+            file_path, error
+        )),
     }
 }
 
@@ -322,7 +341,11 @@ fn extract_nodes(db_neo4j: &Neo4j, tables_folder: &str) -> Result<String, String
 /// Read the JSON file that contains all the couple of foreign keys of the PostgreSQL database <br>
 /// and save them in the CSV files in the the import folder. <br><br>
 /// **WARNING** this method need to be used after ```&self.extract_csv_headers(...)```
-fn extract_relationships(db_neo4j: &Neo4j, tables_folder: &str, foreign_key_path: &str) -> Result<String, String> {
+fn extract_relationships(
+    db_neo4j: &Neo4j,
+    tables_folder: &str,
+    foreign_key_path: &str,
+) -> Result<String, String> {
     let lines = fs::read_to_string(foreign_key_path).map_err(|error| format!("{}", error))?;
     let lines = lines.split("\n").collect::<Vec<&str>>();
 
@@ -413,7 +436,12 @@ fn extract_relationships(db_neo4j: &Neo4j, tables_folder: &str, foreign_key_path
 }
 
 /// This function generate the files needed to do the import to Neo4J. These files store the database in CSV files in the import folder of the Neo4j object.
-pub fn generate_import_files(db_neo4j: &Neo4j,meta_data_path: &str,tables_folder: &str,foreign_key_path: &str) -> Result<String, String> {
+pub fn generate_import_files(
+    db_neo4j: &Neo4j,
+    meta_data_path: &str,
+    tables_folder: &str,
+    foreign_key_path: &str,
+) -> Result<String, String> {
     match process_meta_data(db_neo4j, meta_data_path, foreign_key_path) {
         Ok(res) => {
             println!("{}", res);
