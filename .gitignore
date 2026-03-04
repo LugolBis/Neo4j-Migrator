@@ -6,3 +6,4 @@
 /Neo4j/triggers.cql
 /Neo4j/constraints.cql
 *.pdf
+/Data/*

@@ -153,7 +153,7 @@ fn process_columns(
                 }
 
                 triggers_content.push_str(&format!(
-                    "CREATE CONSTRAINT type_{} FOR (n: {}) REQUIRE n.{} IS :: {}",
+                    "CREATE CONSTRAINT type_{} FOR (n: {}) REQUIRE n.{} IS :: {};\n",
                     function_name, label, column_name, data_type,
                 ));
                 headers.push_str(&format!("{}:{};", column_name, data_type));

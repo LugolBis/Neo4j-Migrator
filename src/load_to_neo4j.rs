@@ -1,6 +1,7 @@
 //! This module contains the logic to load the formated data to neo4j
 
 use std::env;
+use std::fmt::format;
 use std::fs::{self, DirEntry, OpenOptions};
 use std::io::Write;
 use std::path::Path;
@@ -15,6 +16,7 @@ use crate::neo4j::Neo4j;
 /// *relationships* have '_ref_' in their name.
 pub fn load_with_admin(db_neo4j: &Neo4j) -> Result<String, String> {
     let import_folder = db_neo4j.get_import_folder();
+    println!("Import folder path : {}", import_folder);
     if let Err(error) = env::set_current_dir(Path::new(&import_folder)) {
         return Err(format!("{}", error));
     }
@@ -45,18 +47,31 @@ pub fn load_with_admin(db_neo4j: &Neo4j) -> Result<String, String> {
                     (_, _) => {}
                 }
             }
+
+            // WARNING : DON'T TRY TO OPTIMIZE THAT
+            // neo4j-admin needs to pass each different Label/RelsType as an argument
+            // If you have the two labels "A" and "B" in two differents CSV files you absolutly need to pass the following arguments :
+            // ```neo4j-admin ... --nodes=/path/to/A.csv --nodes=/path/to/B.csv```
             for node in nodes {
-                command.arg(format!("--nodes={}", node));
+                command.arg(
+                    format!("--nodes={}{}", import_folder, node)
+                );
             }
+            
             for relationship in relationships {
-                command.arg(format!("--relationships={}", relationship));
+                command.arg(
+                    format!("--relationships={}{}", import_folder, relationship)
+                );
             }
+
             command.args([
                 "--delimiter=;",
                 "--array-delimiter=,",
                 "--overwrite-destination",
                 "--verbose",
             ]);
+
+            println!("Command : {:#?}", command);
 
             let output = command.output();
             match output {

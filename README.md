@@ -28,11 +28,6 @@ With the simple access of your relationnal database it export the data/meta-data
 ### Neo4j
 
 - A valid connection to a **Neo4j** database (uri,username,password,etc.)
-- The Neo4j CLI : **Cypher-Shell**
-- The plugin **APOC**
-
-> [!WARNING]
-> You need to configure your Neo4j database to add the **APOC** plugin and allow it in your database files configuration.
 
 <br>
 
