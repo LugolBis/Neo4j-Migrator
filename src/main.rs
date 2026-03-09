@@ -4,14 +4,15 @@ mod neo4j;
 mod postgresql;
 mod utils;
 
-fn main() {
-    match demo() {
+#[tokio::main]
+async fn main() {
+    match demo().await {
         Ok(_) => println!("\n\nSuccessfully migrate the database to Neo4j !"),
         Err(error) => println!("{}", error),
     }
 }
 
-fn demo() -> Result<(), String> {
+async fn demo() -> Result<(), String> {
     use format_to_neo4j::*;
     use load_to_neo4j::*;
     use neo4j::Neo4j;
@@ -26,35 +27,35 @@ fn demo() -> Result<(), String> {
     let infos = fs::read_to_string(".env").map_err(|error| format!("{}", error))?;
     let infos = infos.split("\n").collect::<Vec<&str>>();
 
-    let db_postgresql = PostgreSQL::new(infos[0], infos[1], infos[2], infos[3], infos[4]);
+    let db_postgresql = PostgreSQL::from(infos[0], infos[1], infos[2], infos[3], infos[4])
+        .await
+        .map_err(|_| "Failed to initialize PostgreSQL connection.".to_string())?;
 
     let db_neo4j = Neo4j::new(infos[5], infos[6]);
 
     // PostgreSQL part
 
-    let script_meta_data = format!("{}/PostgreSQL/meta_data.sql", current_dir);
-    let function_meta_data = "export_tables_metadata";
     let save_meta_data = format!("{}/Data/postgresql_meta_data.json", current_dir);
 
     let tables_folder = format!("{}/Data/", current_dir);
     let save_fk = format!("{}/Neo4j/FK.csv", current_dir);
 
-    match db_postgresql.export_from_sql(&script_meta_data, function_meta_data, &save_meta_data) {
+    match db_postgresql.export_meta_data(&save_meta_data).await {
         Ok(_) => {
             println!("Successfuly export meta data !");
-            match db_postgresql.export_tables_csv(&tables_folder) {
+            match db_postgresql.export_tables_csv(&tables_folder).await {
                 Ok(_) => {
                     println!("Successfuly export tables !");
                 }
-                Err(result) => {
-                    return Err(format!("ERROR when try to export tables :\n{}", result))
-                }
+                Err(result) => return Err("ERROR when try to export tables.".into()),
             }
         }
-        Err(result) => return Err(format!("ERROR when try to export meta data :\n{}", result)),
+        Err(result) => return Err("ERROR when try to export meta data.".into()),
     }
 
     // Neo4J part
+
+    return Ok(());
 
     match generate_import_files(&db_neo4j, &save_meta_data, &tables_folder, &save_fk) {
         Ok(result) => println!("{}", result),

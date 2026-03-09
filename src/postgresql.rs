@@ -1,147 +1,137 @@
 //! This module simplify interactions with PostgreSQL database
 
-use std::process::Command;
+use futures::TryStreamExt;
+use mylog::{error, info};
+use sqlx::postgres::{PgPool, PgPoolOptions, PgRow};
+use sqlx::{Pool, Postgres, Row};
+use std::fs::OpenOptions;
+use std::io::Write;
+use std::path::PathBuf;
+use tokio::time::Duration;
+
+const META_DATA_SCRIPT: &str = include_str!("../PostgreSQL/meta_data.sql");
 
 /// A structure that represent a PostgreSQL connection
-#[derive(Debug)]
 pub struct PostgreSQL {
-    host: String,
-    port: String,
-    username: String,
-    password: String,
-    database: String,
+    pool: Pool<Postgres>,
 }
 
 impl PostgreSQL {
-    pub fn new(host: &str, port: &str, username: &str, password: &str, database: &str) -> Self {
-        Self {
-            host: String::from(host),
-            port: String::from(port),
-            username: String::from(username),
-            password: String::from(password),
-            database: String::from(database),
-        }
+    pub async fn from(
+        host: &str,
+        port: &str,
+        username: &str,
+        password: &str,
+        database: &str,
+    ) -> Result<PostgreSQL, ()> {
+        let url = format!(
+            "postgres://{}:{}@{}:{}/{}",
+            username, password, host, port, database
+        );
+
+        let pool = PgPoolOptions::new()
+            .max_connections(10)
+            .min_connections(1)
+            .acquire_timeout(Duration::from_secs(30))
+            .idle_timeout(Duration::from_secs(600))
+            .max_lifetime(Duration::from_secs(1800))
+            .connect(&url)
+            .await
+            .map_err(|e| error!("{}", e))?;
+
+        Ok(Self { pool })
     }
 
-    /// This method take in input only one PostgreSQL query.<br>
-    /// To run more queries please use ```PostgreSQL.execute_script()```<br>
-    /// Use the parameter ***format_csv*** to configure the format of the output.
-    pub fn execute_query(&self, query: &str, format_csv: bool) -> Result<String, String> {
-        let mut command = Command::new("psql");
-        command.args([
-            "-h",
-            &self.host,
-            "-p",
-            &self.port,
-            "-U",
-            &self.username,
-            "-d",
-            &self.database,
-            "-c",
-            query,
-        ]);
-        if format_csv {
-            command.arg("--csv");
-        }
-        command.env("PGPASSWORD", &self.password);
-
-        let output = command
-            .output()
-            .expect("Échec de l'exécution de la commande psql");
-        if output.status.success() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let result = format!("{}", stdout);
-            Ok(result)
-        } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let result = format!("{}", stderr);
-            Err(result)
-        }
+    pub async fn query(&self, query: &str) -> Result<Vec<PgRow>, ()> {
+        Ok(sqlx::query(query)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| error!("{}\n\tQuery : {}", e, query))?)
     }
 
-    /// The path of the script need to be the reel path (not the relative path).
-    pub fn execute_script(&self, script_path: &str) -> Result<String, String> {
-        let output = Command::new("psql")
-            .args([
-                "-h",
-                &self.host,
-                "-p",
-                &self.port,
-                "-U",
-                &self.username,
-                "-d",
-                &self.database,
-                "-f",
-                script_path,
-                "--csv",
-            ])
-            .env("PGPASSWORD", &self.password)
-            .output()
-            .expect("Échec de l'exécution de la commande psql");
-        if output.status.success() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let result = format!("{}", stdout);
-            Ok(result)
-        } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let result = format!("{}", stderr);
-            Err(result)
+    pub async fn copy_to_file(
+        conn: &mut sqlx::pool::PoolConnection<Postgres>,
+        query: &str,
+        file_path: PathBuf,
+    ) -> Result<(), ()> {
+        // "COPY (SELECT * FROM my_table) TO STDOUT"
+        let mut stream = conn
+            .copy_out_raw(query)
+            .await
+            .map_err(|e| error!("{}", e))?;
+
+        let mut file = OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .open(file_path)
+            .map_err(|e| error!("{}", e))?;
+
+        while let Some(chunk) = stream.try_next().await.map_err(|e| error!("{}", e))? {
+            let _ = file.write_all(&chunk);
         }
+
+        Ok(())
     }
 
-    /// This method allows you to export the result of the SQL function called ```function_name```
-    /// and define in the PostgreSQL script ```script_path``` to the file specified in ```save_path```.
-    /// You should use it to export the meta data of your PostgreSQL database.
-    pub fn export_from_sql(
-        &self,
-        script_path: &str,
-        function_name: &str,
-        save_path: &str,
-    ) -> Result<String, String> {
-        match &self.execute_script(script_path) {
-            Ok(_) => {
-                println!(
-                    "\nExport data from PostgreSQL - Successfully created the function {}\n",
-                    function_name
-                );
-                let query = format!(r"\copy (select {}()) to '{}'", function_name, save_path);
-                match self.execute_query(query.as_str(), false) {
-                    Ok(res) => Ok(res),
-                    Err(error) => Err(error),
+    /// This method allows you to export the PostgreSQL meta data intop the `save_path` file.
+    pub async fn export_meta_data(&self, save_path: &str) -> Result<(), ()> {
+        match &self.query(META_DATA_SCRIPT).await {
+            Ok(rows) => {
+                let mut file = OpenOptions::new()
+                    .create(true)
+                    .truncate(true)
+                    .write(true)
+                    .open(save_path)
+                    .map_err(|e| e.to_string())
+                    .map_err(|e| error!("{}", e))?;
+
+                if let Some(row) = rows.get(0) {
+                    let content: String = row
+                        .try_get(0)
+                        .map_err(|e| e.to_string())
+                        .map_err(|e| error!("{}", e))?;
+                    let _ = file.write_all(content.as_bytes());
                 }
+                Ok(())
             }
-            Err(error) => Err(String::from(error)),
+            Err(_) => Err(error!("Failed to execute meta data script.")),
         }
     }
 
     /// This method export in CSV all the tables from the public scheme of the
     /// PostgreSQL database to the folder passed in argument.
-    pub fn export_tables_csv(&self, folder_path: &str) -> Result<String, String> {
+    pub async fn export_tables_csv(&self, folder_path: &str) -> Result<(), ()> {
         let query =
             "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'";
-        match &self.execute_query(query, true) {
-            Ok(result) => {
-                let tables = result.split("\n").collect::<Vec<&str>>();
-                for index in 1..tables.len() - 1 {
-                    if let Some(table) = tables.get(index) {
-                        let table = *table;
-                        if let Err(error) = &self.execute_query(
-                            &format!(
-                                r"\copy {} to '{}{}.csv' CSV HEADER",
-                                table, folder_path, table
-                            ),
-                            true,
-                        ) {
-                            return Err(format!(
-                                "ERROR : when try to export the data of the table : '{}'\n{}",
-                                table, error
-                            ));
-                        }
-                    }
+        match &self.query(query).await {
+            Ok(rows) => {
+                for row in rows {
+                    let table: String = row.try_get(0).map_err(|e| error!("{}", e))?;
+                    let query = format!(
+                        "COPY (SELECT * FROM {}) TO STDOUT (FORMAT CSV, HEADER)",
+                        table
+                    );
+                    let file_path =
+                        PathBuf::from(folder_path).join(PathBuf::from(format!("{table}.csv")));
+
+                    let mut conn = self.pool.acquire().await.map_err(|e| error!("{}", e))?;
+
+                    Self::copy_to_file(&mut conn, &query, file_path.clone())
+                        .await
+                        .map_err(|_| {
+                            error!(
+                                "Failed to copy the table {} to {}",
+                                table,
+                                file_path.display()
+                            )
+                        })?;
                 }
-                Ok(String::from(""))
+                Ok(())
             }
-            Err(error) => Err(String::clone(error)),
+            Err(_) => Err(error!(
+                "Failed to query the meta datas to get the table names.".to_string()
+            )),
         }
     }
 }
