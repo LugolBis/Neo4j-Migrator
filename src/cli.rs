@@ -17,6 +17,7 @@ const HELP_MESS: &str = r#"
         OPTIONAL :
         --help, -help, help : Display this message.
         -work_folder=<Folder>: <Folder> is the absolute path to the folder who's gonna be used as storage for the program.
+        --ni, -ni, --non-interactive, -non-interactive: Deativate user interaction and runing the program end-to-end, assert that your Neo4j instance is stop before use it. 
 
     Note : Don't use quotes around values of <ARGS>.
 "#;
@@ -50,6 +51,8 @@ fn parse_args(args: Vec<&str>) -> Result<HashMap<String, String>, String> {
             config.insert("NEO4J_IMPORT_FOLDER".into(), get_arg_value(arg, index)?);
         } else if arg.to_lowercase().replace("-", "").starts_with("help") {
             config.insert("HELP".into(), "".into());
+        } else if ["--ni", "-ni", "--non-interactive", "-non-interactive"].contains(arg) {
+            config.insert("NI".into(), "".into());
         } else if arg.starts_with("-work_folder=") {
             config.insert("WORK_FOLDER".into(), get_arg_value(arg, index)?);
         }
@@ -75,7 +78,7 @@ pub async fn main(args: Vec<&str>) -> Result<(), String> {
     }
 
     let work_folder: PathBuf;
-    if conf.get("-work_folder") == None {
+    if conf.get("WORK_FOLDER") == None {
         let folder_path = PathBuf::from(&current_dir).join("neo4j_migrator");
         fs::create_dir_all(&folder_path).map_err(|e| {
             format!(
@@ -86,7 +89,7 @@ pub async fn main(args: Vec<&str>) -> Result<(), String> {
         })?;
         work_folder = folder_path;
     } else {
-        work_folder = PathBuf::from(conf["-work_folder"].clone());
+        work_folder = PathBuf::from(conf["WORK_FOLDER"].clone());
     }
 
     // Configure logs
@@ -152,11 +155,16 @@ pub async fn main(args: Vec<&str>) -> Result<(), String> {
         Err(result) => println!("{}", result),
     }
 
-    println!("Please stop your Neo4j database to process the import.\nWhen it is done enter 'YES' below :\n");
     let mut user_input = String::new();
-    io::stdin()
-        .read_line(&mut user_input)
-        .expect("Error when try to read the user input.");
+    if let Some(_) = conf.get("NI") {
+        user_input = "YES".into();
+    } else {
+        println!("Please stop your Neo4j database to process the import.\nWhen it is done enter 'YES' below :\n");
+
+        io::stdin()
+            .read_line(&mut user_input)
+            .expect("Error when try to read the user input.");
+    }
 
     if user_input.trim() == "YES" {
         match load_with_admin(&db_neo4j) {

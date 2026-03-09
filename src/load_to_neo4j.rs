@@ -66,8 +66,6 @@ pub fn load_with_admin(db_neo4j: &Neo4j) -> Result<String, String> {
                 "--verbose",
             ]);
 
-            println!("Command : {:#?}", command);
-
             let output = command.output();
             match output {
                 Ok(output) => {
