@@ -11,7 +11,7 @@ With the simple access of your relationnal database it export the data/meta-data
 2) Configure your Neo4j database
 3) Install **Neo4j-Migrator** CLI :
    ```BashScript
-   $ cargo install --git https://github.com/LugolBis/MyShortcuts.git
+   $ cargo install --git https://github.com/LugolBis/MyShortcuts.git --branch cli
    ```
 4) Start your **PostgreSQL** and **complete**/run :
    ```BashScript
