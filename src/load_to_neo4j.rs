@@ -1,7 +1,6 @@
 //! This module contains the logic to load the formated data to neo4j
 
 use std::env;
-use std::fmt::format;
 use std::fs::{self, DirEntry, OpenOptions};
 use std::io::Write;
 use std::path::Path;
@@ -53,15 +52,11 @@ pub fn load_with_admin(db_neo4j: &Neo4j) -> Result<String, String> {
             // If you have the two labels "A" and "B" in two differents CSV files you absolutly need to pass the following arguments :
             // ```neo4j-admin ... --nodes=/path/to/A.csv --nodes=/path/to/B.csv```
             for node in nodes {
-                command.arg(
-                    format!("--nodes={}{}", import_folder, node)
-                );
+                command.arg(format!("--nodes={}{}", import_folder, node));
             }
-            
+
             for relationship in relationships {
-                command.arg(
-                    format!("--relationships={}{}", import_folder, relationship)
-                );
+                command.arg(format!("--relationships={}{}", import_folder, relationship));
             }
 
             command.args([

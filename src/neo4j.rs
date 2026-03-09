@@ -9,7 +9,7 @@ pub struct Neo4j {
 const _CONFIG_QUERY: &str = "CALL dbms.listConfig() YIELD name, value, description WHERE name = 'server.directories.neo4j_home' RETURN name, value, description;";
 
 impl Neo4j {
-    pub fn new(database: &str, import_folder: &str) -> Self {
+    pub fn new(database: &String, import_folder: &String) -> Self {
         Self {
             database: String::from(database),
             import_folder: String::from(import_folder),

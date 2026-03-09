@@ -1,8 +1,8 @@
 //! This module simplify interactions with PostgreSQL database
 
 use futures::TryStreamExt;
-use mylog::{error, info};
-use sqlx::postgres::{PgPool, PgPoolOptions, PgRow};
+use mylog::error;
+use sqlx::postgres::{PgPoolOptions, PgRow};
 use sqlx::{Pool, Postgres, Row};
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -18,11 +18,11 @@ pub struct PostgreSQL {
 
 impl PostgreSQL {
     pub async fn from(
-        host: &str,
-        port: &str,
-        username: &str,
-        password: &str,
-        database: &str,
+        host: &String,
+        port: &String,
+        username: &String,
+        password: &String,
+        database: &String,
     ) -> Result<PostgreSQL, ()> {
         let url = format!(
             "postgres://{}:{}@{}:{}/{}",
@@ -75,7 +75,7 @@ impl PostgreSQL {
     }
 
     /// This method allows you to export the PostgreSQL meta data intop the `save_path` file.
-    pub async fn export_meta_data(&self, save_path: &str) -> Result<(), ()> {
+    pub async fn export_meta_data(&self, save_path: &PathBuf) -> Result<(), ()> {
         match &self.query(META_DATA_SCRIPT).await {
             Ok(rows) => {
                 let mut file = OpenOptions::new()
@@ -101,7 +101,7 @@ impl PostgreSQL {
 
     /// This method export in CSV all the tables from the public scheme of the
     /// PostgreSQL database to the folder passed in argument.
-    pub async fn export_tables_csv(&self, folder_path: &str) -> Result<(), ()> {
+    pub async fn export_tables_csv(&self, folder_path: &PathBuf) -> Result<(), ()> {
         let query =
             "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'";
         match &self.query(query).await {
@@ -112,8 +112,7 @@ impl PostgreSQL {
                         "COPY (SELECT * FROM {}) TO STDOUT (FORMAT CSV, HEADER)",
                         table
                     );
-                    let file_path =
-                        PathBuf::from(folder_path).join(PathBuf::from(format!("{table}.csv")));
+                    let file_path = folder_path.join(PathBuf::from(format!("{table}.csv")));
 
                     let mut conn = self.pool.acquire().await.map_err(|e| error!("{}", e))?;
 
