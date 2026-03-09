@@ -9,29 +9,34 @@ With the simple access of your relationnal database it export the data/meta-data
 
 1) Check the [Requirements](https://github.com/LugolBis/Neo4j-Migrator#requirements)
 2) Configure your Neo4j database
-3) Install **Neo4j-Migrator** :
+3) Install **Neo4j-Migrator** CLI :
    ```BashScript
-   $ git clone https://github.com/LugolBis/Neo4j-Migrator.git
+   $ cargo install --git https://github.com/LugolBis/MyShortcuts.git
    ```
-4) Start your Neo4j database and run **Neo4j-Migrator** :
+4) Start your **PostgreSQL** and **complete**/run :
    ```BashScript
-   $ cargo run
+   neo4j-migrator \
+      -pg_host=localhost \
+      -pg_port=5432 \
+      -pg_user=your_postgres_user \
+      -pg_password=your_password \
+      -pg_database=target_postgres_db \
+      -neo4j_database=target_neo4j_db \
+      -neo4j_import_folder=/path/to/neo4j/your_db/import/
    ```
+
+   ![NOTE] : If needed you can use `-work_folder=` argument to set the folder used by **Neo4j-Migrator** (default value is `./neo4j_migrator/`).
+5) You can now use `cypher-shell` or anything else who's better (not hard to find) to execute generated Cypher scripts `constraints.cql` and `triggers.cql`.
 
 ## Requirements
 
 ### PostgreSQL
 
 - A valid connection to a **PostgreSQL** database (address,port,username,etc.)
-- The PostgreSQL CLI : **psql**
-
-### Neo4j
-
-- A valid connection to a **Neo4j** database (uri,username,password,etc.)
 
 <br>
 
-| Operating System | Relationnal Database | Graph Database | Plugin | Compatibility |
-|:-:|:-:|:-:|:-:|:-:|
-| Linux/macOS | PostgreSQL | Neo4j **v5.26.0** | APOC **v5.26.2** | ✅ |
-| other~ | other~ | other~ | other~ | ❔ |
+| Operating System | Relationnal Database | Graph Database | Compatibility |
+|:-:|:-:|:-:|:-:|
+| Linux/macOS | PostgreSQL | Neo4j | ✅ |
+| other~ | other~ | other~ | ❔ |
