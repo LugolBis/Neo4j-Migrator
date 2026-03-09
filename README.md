@@ -25,7 +25,8 @@ With the simple access of your relationnal database it export the data/meta-data
       -neo4j_import_folder=/path/to/neo4j/your_db/import/
    ```
 
-   ![NOTE] : If needed you can use `-work_folder=` argument to set the folder used by **Neo4j-Migrator** (default value is `./neo4j_migrator/`).
+   > [!NOTE]
+   > If needed you can use `-work_folder=` argument to set the folder used by **Neo4j-Migrator** (default value is `./neo4j_migrator/`).
 5) You can now use `cypher-shell` or anything else who's better (not hard to find) to execute generated Cypher scripts `constraints.cql` and `triggers.cql`.
 
 ## Requirements
